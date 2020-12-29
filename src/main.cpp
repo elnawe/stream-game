@@ -34,7 +34,6 @@ int main() {
             nawelito_position.y += 3;
             isAnimated = true;
         }
-
         if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
             nawelito_position.y -= 3;
             isAnimated = true;
