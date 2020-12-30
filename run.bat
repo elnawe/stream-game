@@ -1,5 +1,5 @@
 @echo off
 
-pushd .\build
-call game.exe
+pushd .\data
+call ..\build\main.exe
 popd
