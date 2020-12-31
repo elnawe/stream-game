@@ -1,5 +1,5 @@
 @echo off
 
 pushd .\data
-call ..\build\main.exe
+call ..\build\stream.exe
 popd
