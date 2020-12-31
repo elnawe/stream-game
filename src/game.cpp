@@ -91,11 +91,9 @@ void handle_input() {
     }
 
     if (animation_timer >= 0.2f) {
-        debug_print("timer is off\n");
         animation_timer = 0.0f;
 
         if (player.animation.is_running) {
-            debug_print("ahora si anime\n");
             player.animation.current_frame += 1;
         } else {
             player.animation.current_frame = 0;
