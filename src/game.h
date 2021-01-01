@@ -9,4 +9,4 @@ void handle_input();
 void update_game();
 void render_game();
 
-#endif  GAME_H
+#endif

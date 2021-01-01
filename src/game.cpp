@@ -1,4 +1,4 @@
-#include "include/raylib.h"
+#include "raylib.h"
 #include "config.h"
 #include "debug.h"
 #include "game.h"

@@ -4,4 +4,4 @@
 void debug_print(char *debug_text);
 void render_debug_options();
 
-#endif  DEBUG_H
+#endif

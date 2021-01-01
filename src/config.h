@@ -8,4 +8,4 @@
 #define WINDOW_HEIGHT 600
 #define GAME_FPS 60
 
-#endif  CONFIG_H
+#endif

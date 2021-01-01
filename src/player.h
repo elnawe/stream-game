@@ -24,4 +24,4 @@ struct Player {
     Vector2 velocity;
 };
 
-#endif  PLAYER_H
+#endif
