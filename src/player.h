@@ -4,7 +4,7 @@
 struct Animation {
     bool is_running;
 
-    char *name;
+    const char *name;
 
     int current_frame;
     int total_frames;
