@@ -1,12 +1,18 @@
 #ifndef GAME_H
 #define GAME_H
 
-// TODO: Camera.cpp
-void update_camera();
+#include "SDL.h"
+#include "entity.h"
 
-void init_game();
-void handle_input();
-void update_game();
-void render_game();
+// NOTE: Use this!!!11!
+struct Game_Data {
+    int screen_width;
+    int screen_height;
+    SDL_Renderer *renderer;
+    //Entity[10000] entities;
+};
+
+void game_init(Game_Data *game);
+void game_loop(Game_Data *game);
 
 #endif
