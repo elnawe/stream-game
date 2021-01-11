@@ -3,16 +3,27 @@
 #include <stdio.h>
 #include <windows.h>
 #include "SDL.h"
+#include "SDL_image.h"
+#include "SDL_mixer.h"
+#include "SDL_ttf.h"
 #include "config.h"
 #include "game.h"
 
+#if DEBUG_MODE
+#include <stdlib.h>
+#include <string.h>
+#endif
+
 // DLL functions
 typedef void (*game_init_func) (Game_Data *game);
-typedef void (*game_loop_func) (Game_Data *game);
-
+typedef void (*game_handle_input_func) (Game_Data *game);
+typedef void (*game_update_and_render_func) (Game_Data *game);
+typedef void (*game_sound_and_debug_func) (Game_Data *game);
 // Stub functions
 void game_init_stub(Game_Data *it){}
-void game_loop_stub(Game_Data *it){}
+void game_handle_input_stub(Game_Data *it){}
+void game_update_and_render_stub(Game_Data *it){}
+void game_sound_and_debug_stub(Game_Data *it){}
 
 struct SDL_Game_Code {
     void *game_code_dll;
@@ -22,7 +33,9 @@ struct SDL_Game_Code {
     const char *temp_dll_name;
 
     game_init_func game_init;
-    game_loop_func game_loop;
+    game_handle_input_func game_handle_input;
+    game_update_and_render_func game_update_and_render;
+    game_sound_and_debug_func game_sound_and_debug;
 
     bool is_valid;
 };
@@ -38,7 +51,9 @@ void SDL_platform_unload_game_code() {
 
     game_code.is_valid = false;
     game_code.game_init = game_init_stub;
-    game_code.game_loop = game_loop_stub;
+    game_code.game_handle_input = game_handle_input_stub;
+    game_code.game_update_and_render = game_update_and_render_stub;
+    game_code.game_sound_and_debug = game_sound_and_debug_stub;
     game_code.dll_file_time = {};
 }
 
@@ -73,11 +88,16 @@ SDL_Game_Code SDL_platform_load_game_code() {
     SDL_Game_Code result = {};
     WIN32_FILE_ATTRIBUTE_DATA file_data;
 
+#if DEBUG_MODE
     // TODO: DLL file should be loaded from the same folder
-    result.source_dll_name = "../build/game.dll";
-    result.temp_dll_name = "../build/temp_game.dll";
+    result.source_dll_name = SOURCE_DLL_NAME;
+        result.temp_dll_name = TEMP_DLL_NAME;
 
     assert(SDL_platform_copy_file(result.source_dll_name, result.temp_dll_name));
+#else
+    result.source_dll_name = SOURCE_DLL_NAME;
+    result.temp_dll_name = SOURCE_DLL_NAME;
+#endif
 
     result.game_code_dll = SDL_LoadObject(result.temp_dll_name);
 
@@ -87,11 +107,22 @@ SDL_Game_Code SDL_platform_load_game_code() {
     }
 
     result.game_init =
-        (game_init_func) SDL_LoadFunction(result.game_code_dll, "game_init");
-    result.game_loop =
-        (game_loop_func) SDL_LoadFunction(result.game_code_dll, "game_loop");
+        (game_init_func) SDL_LoadFunction(result.game_code_dll,
+                                          "GAME_INIT");
+    result.game_handle_input =
+        (game_handle_input_func) SDL_LoadFunction(result.game_code_dll,
+                                                  "GAME_HANDLE_INPUT");
+    result.game_update_and_render =
+        (game_update_and_render_func) SDL_LoadFunction(result.game_code_dll,
+                                                       "GAME_UPDATE_AND_RENDER");
+    result.game_sound_and_debug =
+        (game_sound_and_debug_func) SDL_LoadFunction(result.game_code_dll,
+                                                     "GAME_SOUND_AND_DEBUG");
 
-    assert(result.game_init && result.game_loop);
+    assert(result.game_init &&
+           result.game_handle_input &&
+           result.game_update_and_render &&
+           result.game_sound_and_debug);
 
     result.is_valid = true;
 
@@ -124,90 +155,99 @@ bool SDL_platform_code_changed() {
     return false;
 }
 
-void on_init(SDL_Renderer *renderer) {
+void on_init(SDL_Window *window, SDL_Renderer *renderer) {
     game_code = SDL_platform_load_game_code();
 
     assert(game_code.is_valid);
-    game.screen_width = WINDOW_WIDTH;
-    game.screen_height = WINDOW_HEIGHT;
+    game.screen_width = ORIGINAL_GRAPHIC_WIDTH;
+    game.screen_height = ORIGINAL_GRAPHIC_HEIGHT;
+    game.window_width = WINDOW_WIDTH;
+    game.window_height = WINDOW_HEIGHT;
+    game.running = true;
+    game.window = window;
     game.renderer = renderer;
     game_code.game_init(&game);
 }
 
 int main() {
-    bool running = true;
-    int frame_start, frame_time;
+    Uint64 START, END;
+    SDL_Window *window;
+    SDL_Renderer *renderer;
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "[SDL] SDL_Init Error: %s\n", SDL_GetError());
         return 1;
     }
 
-    SDL_Window *window = SDL_CreateWindow(WINDOW_TITLE,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          WINDOW_WIDTH,
-                                          WINDOW_HEIGHT,
-                                          SDL_WINDOW_OPENGL|
-                                          SDL_WINDOW_SHOWN|
-                                          SDL_WINDOW_RESIZABLE);
+    if (Mix_Init(MIX_INIT_MP3) != MIX_INIT_MP3) {
+        fprintf(stderr, "[SDL_mixer] Mix_Init Error: %s\n", Mix_GetError());
+    }
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) != 0) {
+        printf("ERROR: Couldn't open audio.\n Message: %s\n", Mix_GetError());
+        return 1;
+    }
 
-    on_init(renderer);
+    if (IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG) {
+        fprintf(stderr, "[SDL_image] IMG_Init Error: %s\n", IMG_GetError());
+        return 1;
+    }
 
-    while (running) {
-        frame_start = SDL_GetTicks();
+    if (TTF_Init() == -1) {
+        printf("[SDL_ttf] TTF_Init Error: %s\n", TTF_GetError());
+        return 1;
+    }
 
-        // SDL_Event event;
+    window = SDL_CreateWindow(WINDOW_TITLE,
+                              SDL_WINDOWPOS_UNDEFINED,
+                              SDL_WINDOWPOS_UNDEFINED,
+                              WINDOW_WIDTH,
+                              WINDOW_HEIGHT,
+                              SDL_WINDOW_OPENGL|
+                              SDL_WINDOW_SHOWN|
+                              SDL_WINDOW_RESIZABLE);
 
-        // while (SDL_PollEvent(&event)) {
-        //     switch(event.type) {
-        //         case SDL_QUIT:
-        //         {
-        //             running = false;
-        //         } break;
-        //         case SDL_KEYDOWN:
-        //         {
-        //             printf("KEY DOWN %d\n", event.key.keysym.sym);
-        //             if (event.key.keysym.sym == SDLK_ESCAPE) {
-        //                 running = false;
-        //             }
+    renderer = SDL_CreateRenderer(window, -1,
+                                  SDL_RENDERER_ACCELERATED|
+                                  SDL_RENDERER_PRESENTVSYNC);
 
-        //             if (event.key.keysym.sym == SDLK_F5) {
-        //                 SDL_platform_unload_game_code();
+    // Recalculate renderer scale
+    SDL_RenderSetScale(renderer,
+                       (WINDOW_WIDTH  / ORIGINAL_GRAPHIC_WIDTH),
+                       (WINDOW_HEIGHT / ORIGINAL_GRAPHIC_HEIGHT));
 
-        //                 game_code =
-        //                     SDL_platform_load_game_code("../build/game.dll",
-        //                                                 "../build/game_temp.dll");
+    on_init(window, renderer);
 
-        //                 // Need this to refresh memory when the DLL is reloaded
-        //                 game_code.game_init(&game);
-        //             }
-        //         }
-        //     }
-        // }
+    while (game.running && game_code.is_valid) {
+        START = SDL_GetPerformanceCounter();
 
-        if (game_code.is_valid) {
-            game_code.game_loop(&game);
-        }
+        game_code.game_handle_input(&game);
 
-        frame_time = SDL_GetTicks() - frame_start;
+        SDL_SetRenderDrawColor(game.renderer, 230, 230, 230, 255);
+        SDL_RenderClear(game.renderer);
 
-        if (frame_time < DELAY_TIME) {
-            SDL_Delay(DELAY_TIME - frame_time);
-        }
+        game_code.game_update_and_render(&game);
 
+        SDL_RenderPresent(game.renderer);
+
+        END = SDL_GetPerformanceCounter();
+        float FREQ = (float)SDL_GetPerformanceFrequency();
+        game.delta_time = ((END - START) * GAME_SPEED_MULTIPLIER) / FREQ;
+
+        game_code.game_sound_and_debug(&game);
+
+#if DEBUG_MODE
         if (SDL_platform_code_changed()) {
             SDL_platform_unload_game_code();
 
             game_code = SDL_platform_load_game_code();
-
-            // Need this to refresh memory when the DLL is reloaded
-            game_code.game_init(&game);
         }
+#endif
     }
 
+    SDL_platform_unload_game_code();
+
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
     SDL_Quit();

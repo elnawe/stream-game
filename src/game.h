@@ -1,18 +1,44 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "SDL.h"
 #include "entity.h"
+#include "item.h"
+#include "SDL.h"
+#include "texture_manager.h"
 
-// NOTE: Use this!!!11!
-struct Game_Data {
-    int screen_width;
-    int screen_height;
-    SDL_Renderer *renderer;
-    //Entity[10000] entities;
+enum Game_Scene {
+                 MENU,
+                 GAME,
+                 PAUSE
 };
 
-void game_init(Game_Data *game);
-void game_loop(Game_Data *game);
+struct Game_State {
+    const Uint8 *input;
+    Game_Scene scene;
+};
+
+struct Game_Data {
+    float screen_width;
+    float screen_height;
+    float window_width;
+    float window_height;
+    bool running;
+    float delta_time;
+    SDL_Renderer *renderer;
+    SDL_Window *window;
+
+    Entity_List entity_list;
+    Item_List item_list;
+    Texture_Manager texture_manager;
+    Game_State state;
+
+    // TEMP
+    SDL_Texture *background_texture;
+};
+
+void GAME_INIT(Game_Data *game);
+void GAME_HANDLE_INPUT(Game_Data *game);
+void GAME_UPDATE_AND_RENDER(Game_Data *game);
+void GAME_SOUND_AND_DEBUG(Game_Data *game);
 
 #endif
