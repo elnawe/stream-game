@@ -17,6 +17,10 @@ struct Game_State {
     Game_Scene scene;
 };
 
+struct Game_Options {
+    r32 music_volume;
+};
+
 struct Game_Data {
     float screen_width;
     float screen_height;
@@ -31,9 +35,7 @@ struct Game_Data {
     Item_List item_list;
     Texture_Manager texture_manager;
     Game_State state;
-
-    // TEMP
-    SDL_Texture *background_texture;
+    Game_Options options;
 };
 
 void GAME_INIT(Game_Data *game);

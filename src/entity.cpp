@@ -32,8 +32,8 @@ Entity *create_entity(const char *surface_name,
 
     position.x = 0;
     position.y = 0;
-    size.x = temp_surface->w;
-    size.y = temp_surface->h;
+    size.x = 16;
+    size.y = 16;
 
     new_entity.id = current;
     new_entity.position = position;

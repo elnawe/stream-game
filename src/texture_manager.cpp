@@ -31,3 +31,16 @@ void load_texture(const char *name,
 
     SDL_FreeSurface(temp_surface);
 }
+
+SDL_Texture *get_texture(const char *name, Texture_Manager *texture_manager) {
+    SDL_Texture *texture;
+
+    for (int i = 0; i < texture_manager->count; ++i) {
+        if (strcmp(texture_manager->tl[i].name, name) == 0) {
+            texture = texture_manager->tl[i].texture;
+            break;
+        }
+    }
+
+    return texture;
+}

@@ -18,4 +18,7 @@ void load_texture(int texture_id,
                   Texture_Manager *texture_manager,
                   SDL_Renderer *renderer);
 
+SDL_Texture *get_texture(const char *name,
+                         Texture_Manager *texture_manager);
+
 #endif
