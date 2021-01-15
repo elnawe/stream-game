@@ -1,3 +1,12 @@
+* TODO [CODE] Collision with tiles!
+* TODO [CODE] Initialize game_state somewhere
+* TODO [CODE] Player movement should be assigned to the World struct
+* TODO [CODE] Chech the quick maths. Lerp player movement
+  Player movement is faster on diagonals
+* TODO [CODE] Start using precision floating point SDL_FRect
+* TODO [CODE] Clean up types
+
+
 * DONE STREAM(1/12) [CODE] Add types.h file
 * DONE STREAM(1/12) [CODE] Add operator overload for Vector2
 * DONE [CODE] Runtime config file!!!
@@ -5,10 +14,5 @@
   game_code.is_valid checks before running the frame
 * DONE [UTIL] Create TODO.bat script to get all // TODO(s)
 * DONE [CODE] Show FPS/frametime
-
-* TODO [CODE] Chech the quick maths. Lerp player movement
-  Player movement is faster on diagonals
-* TODO [CODE] Player movement should be assigned to the World struct
-* TODO [CODE] Collision with tiles!
-* TODO [CODE] Clean up types
-* TODO [CODE] Start using precision floating point SDL_FRect
+* DONE [ BUG] Memory leak on FPS/Frametime counter
+* DONE [CODE] Move game memory to the game_state

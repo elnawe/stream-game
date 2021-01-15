@@ -10,13 +10,16 @@
 #include "SDL_ttf.h"
 #include "texture_manager.h"
 #include "types.h"
-#include "world.h"
+//#include "world.h"
 
 // Compile only these...
 #include "entity.cpp"
 #include "item.cpp"
 #include "texture_manager.cpp"
-#include "world.cpp"
+//#include "world.cpp"
+
+static Game_Data *game;
+static Game_State *game_state;
 
 // TEMP VARS
 static Uint64 animation_timer;
@@ -25,7 +28,13 @@ static Uint32 last_update;
 static bool show_box_colliders = true;
 static Uint32 fullscreen_toggle = 0;
 
-void GAME_INIT(Game_Data *game) {
+bool is_point_empty() {
+    return true;
+}
+
+void GAME_INIT(Game_Data *g, Game_State *state) {
+    game = g;
+    game_state = state;
     // TODO: remove this with new load_texture/create_entity combo
     create_entity("assets/player.bmp", &game->entity_list, game->renderer);
 
@@ -64,15 +73,25 @@ void GAME_INIT(Game_Data *game) {
     }
 
     // Player
+    game_state->player_position = {
+        (game->screen_width / 2) - 16,
+        (game->screen_height / 2) - 16
+    };
+
     game->entity_list.e[0].type = PLAYER;
-    game->entity_list.e[0].position.x = (game->screen_width / 2) - 16;
-    game->entity_list.e[0].position.y = (game->screen_height / 2) - 16;
-    game->entity_list.e[0].size.x = 32;
-    game->entity_list.e[0].size.y = 32;
+    game->entity_list.e[0].size.w = 32;
+    game->entity_list.e[0].size.h = 32;
+    game->entity_list.e[0].position = game_state->player_position;
+
 }
 
-void GAME_HANDLE_INPUT(Game_Data *game) {
-    game->state.input = SDL_GetKeyboardState(NULL);
+void GAME_REFRESH(Game_Data *g, Game_State *state) {
+    game = g;
+    game_state = state;
+}
+
+void GAME_HANDLE_INPUT() {
+    game_state->input = SDL_GetKeyboardState(NULL);
 
     SDL_Event event;
 
@@ -151,49 +170,102 @@ void GAME_HANDLE_INPUT(Game_Data *game) {
     // }
 }
 
-void GAME_UPDATE_AND_RENDER(Game_Data *game) {
+void GAME_UPDATE_AND_RENDER() {
     Vector2 movement;
+    Entity *player = &game->entity_list.e[0];
 
     current = SDL_GetTicks();
 
     movement = {
-        ((-1.0f * game->state.input[SDL_SCANCODE_A]) +
-         game->state.input[SDL_SCANCODE_D]),
-        ((-1.0f * game->state.input[SDL_SCANCODE_W]) +
-         game->state.input[SDL_SCANCODE_S])
+        ((-1.0f * game_state->input[SDL_SCANCODE_A]) +
+         game_state->input[SDL_SCANCODE_D]),
+        ((-1.0f * game_state->input[SDL_SCANCODE_W]) +
+         game_state->input[SDL_SCANCODE_S])
     };
 
     // Entity *player = entity_get_player(game);
     // TODO Move to player entity
-    int velocity = (int)30 * game->delta_time;
-    game->entity_list.e[0].position += movement * velocity;
+    f32 velocity = 175.0f * game->delta_time;
+    Vector2 d_player_position = movement * velocity;
 
     if (movement.x < 0) {
-        game->entity_list.e[0].flip_mode = SDL_FLIP_HORIZONTAL;
+        player->flip_mode = SDL_FLIP_HORIZONTAL;
     } else if (movement.x > 0) {
-        game->entity_list.e[0].flip_mode = SDL_FLIP_NONE;
+        player->flip_mode = SDL_FLIP_NONE;
     }
 
-    game->entity_list.e[0].src_rect.w = 16;
-    game->entity_list.e[0].src_rect.h = 16;
-    game->entity_list.e[0].src_rect.y = 16;
+    player->src_rect.w = 16;
+    player->src_rect.h = 16;
+    player->src_rect.y = 16;
+    player->position = game_state->player_position;
 
     // TODO: FIX MEEEEEE!!!111
-    float animation_time = (current - last_update) / 1000.0f;
-    double frame_to_update = floor(animation_time / (1.0f / 6.0f));
+    r32 animation_time = (current - last_update) / 1000.0f;
+    r64 frame_to_update = floor(animation_time / (1.0f / 6.0f));
 
     if (frame_to_update > 0) {
         last_update = current;
-        game->entity_list.e[0].src_rect.x += 16;
+        player->src_rect.x += 16;
 
-        if (game->entity_list.e[0].src_rect.x > 16) {
-            game->entity_list.e[0].src_rect.x = 0;
+        if (player->src_rect.x > 16) {
+            player->src_rect.x = 0;
         }
     }
 
-    render_tilemap(game);
+    // render_tilemap(game);
+    // TILEMAP
+    const u32 TILEMAP_SIZE_X = 17;
+    const u32 TILEMAP_SIZE_Y = 9;
+    i32 tilemap[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+        {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
+        {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
+        {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+    };
+    //tilemap[4][8] = 1;
+    i32 upper_left = -5;
+    u32 tile_width = 42;
+    u32 tile_height = 40;
 
-    for (int i = 0; i < game->entity_list.count; ++i) {
+    Vector2 new_player_position = game_state->player_position + d_player_position;
+    i32 player_point_x = new_player_position.x - (0.5f * player->size.w);
+    i32 player_point_y = new_player_position.y - player->size.h;
+
+    i32 tile_x = new_player_position.x / tile_width;
+    i32 tile_y = new_player_position.y / tile_height;
+
+    if (tilemap[tile_y][tile_x] == 0) {
+        game_state->player_position = new_player_position;
+    }
+
+    for (u32 column = 0; column < TILEMAP_SIZE_X; ++column) {
+        for (u32 row = 0; row < TILEMAP_SIZE_Y; ++row) {
+            SDL_Rect dst_rect;
+            u32 tile_id = tilemap[row][column];
+
+            dst_rect.x = upper_left + (column * tile_width);
+            dst_rect.y = upper_left + (row * tile_height);
+            dst_rect.w = tile_width;
+            dst_rect.h = tile_height;
+
+            SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
+
+            if (tile_id == 1) {
+                SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
+            }
+
+
+            SDL_RenderFillRect(game->renderer, &dst_rect);
+        }
+    }
+
+
+    for (i32 i = 0; i < game->entity_list.count; ++i) {
         Entity e = game->entity_list.e[i];
 
         if (e.type != NONE) {
@@ -229,7 +301,7 @@ void GAME_UPDATE_AND_RENDER(Game_Data *game) {
     }
 }
 
-void GAME_SOUND_AND_DEBUG(Game_Data *game) {
+void GAME_SOUND_AND_DEBUG() {
     Mix_VolumeMusic(game->options.music_volume * MIX_MAX_VOLUME);
 
 }

@@ -15,6 +15,9 @@ enum Game_Scene {
 struct Game_State {
     const Uint8 *input;
     Game_Scene scene;
+    Vector2 player_position;
+
+    bool is_initialized;
 };
 
 struct Game_Options {
@@ -34,13 +37,13 @@ struct Game_Data {
     Entity_List entity_list;
     Item_List item_list;
     Texture_Manager texture_manager;
-    Game_State state;
     Game_Options options;
 };
 
-void GAME_INIT(Game_Data *game);
-void GAME_HANDLE_INPUT(Game_Data *game);
-void GAME_UPDATE_AND_RENDER(Game_Data *game);
-void GAME_SOUND_AND_DEBUG(Game_Data *game);
+void GAME_INIT(Game_Data *g, Game_State *state);
+void GAME_REFRESH(Game_Data *g, Game_State *state);
+void GAME_HANDLE_INPUT();
+void GAME_UPDATE_AND_RENDER();
+void GAME_SOUND_AND_DEBUG();
 
 #endif

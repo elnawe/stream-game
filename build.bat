@@ -13,7 +13,7 @@ del *.pdb > NUL 2> NUL
 
 REM Compile game.cpp into game.dll
 
-cl /DDEBUG_MODE#1 %CommonCompilerFlags% /I..\include ..\src\game.cpp -LD /link -incremental:no -opt:ref -PDB:stream_%random%.pdb ..\lib\SDL2.lib ..\lib\SDL2main.lib ..\lib\SDL2_image.lib ..\lib\SDL2_mixer.lib ..\lib\SDL2_ttf.lib -EXPORT:GAME_INIT -EXPORT:GAME_HANDLE_INPUT -EXPORT:GAME_UPDATE_AND_RENDER -EXPORT:GAME_SOUND_AND_DEBUG
+cl /DDEBUG_MODE#1 %CommonCompilerFlags% /I..\include ..\src\game.cpp -LD /link -incremental:no -opt:ref -PDB:stream_%random%.pdb ..\lib\SDL2.lib ..\lib\SDL2main.lib ..\lib\SDL2_image.lib ..\lib\SDL2_mixer.lib ..\lib\SDL2_ttf.lib -EXPORT:GAME_INIT -EXPORT:GAME_REFRESH -EXPORT:GAME_HANDLE_INPUT -EXPORT:GAME_UPDATE_AND_RENDER -EXPORT:GAME_SOUND_AND_DEBUG
 
 
 REM Compile the platform layer if needed (when stream.exe -or

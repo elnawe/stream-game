@@ -4,23 +4,15 @@
 #define WINDOW_TITLE  "BoomerGame"
 
 #if DEBUG_MODE
-  #define SOURCE_DLL_NAME "build/game.dll"
-  #define TEMP_DLL_NAME   "build/temp_game.dll"
+    #define SOURCE_DLL_NAME "build/game.dll"
+    #define TEMP_DLL_NAME   "build/temp_game.dll"
 #else
-  #define SOURCE_DLL_NAME "game.dll"
-  #define TEMP_DLL_NAME   "game.dll"
+    #define SOURCE_DLL_NAME "game.dll"
+    #define TEMP_DLL_NAME   "game.dll"
 #endif
 
 #define CONFIG_FILE_NAME      "run_tree/config.ini"
 #define CONFIG_TEMP_FILE_NAME "run_tree/config.temp.ini"
-
-// Defines the multiplier of dT. See following table for examples.
-// |  VALUE  | VELOCITY |
-// |---------|----------|
-// |   1.0f  |      100 |
-// |  10.0f  |       10 |
-// | 100.0f  |        1 |
-#define GAME_SPEED_MULTIPLIER 10.0f
 
 // GRAPHIC WIDTH and HEIGHT are used to define the scale that the renderer will
 // take to show an appropiate size of the 2D art in the game.

@@ -1,10 +1,14 @@
 #define SDL_MAIN_HANDLED
+#include "sdl_platform.h"
+
+#include "../external/ini.h"
+#include "../external/ini.c"
+
 #include <assert.h>
 #include <stdio.h>
 #include <windows.h>
 #include "config.h"
 #include "game.h"
-#include "ini.h"
 #include "SDL.h"
 #include "SDL_image.h"
 #include "SDL_mixer.h"
@@ -15,43 +19,11 @@
     #include <string.h>
 #endif
 
-#include "ini.c"
-
-// DLL functions
-typedef void (*game_init_func) (Game_Data *game);
-typedef void (*game_handle_input_func) (Game_Data *game);
-typedef void (*game_update_and_render_func) (Game_Data *game);
-typedef void (*game_sound_and_debug_func) (Game_Data *game);
-// Stub functions
-void game_init_stub(Game_Data *it){}
-void game_handle_input_stub(Game_Data *it){}
-void game_update_and_render_stub(Game_Data *it){}
-void game_sound_and_debug_stub(Game_Data *it){}
-
-struct SDL_Game_Code {
-    void *game_code_dll;
-
-    FILETIME dll_file_time;
-    const char *source_dll_name;
-    const char *temp_dll_name;
-
-    game_init_func game_init;
-    game_handle_input_func game_handle_input;
-    game_update_and_render_func game_update_and_render;
-    game_sound_and_debug_func game_sound_and_debug;
-
-    bool is_valid;
-};
-
-struct SDL_Game_Config {
-    FILETIME last_update;
-    bool is_valid;
-};
-
 static TTF_Font *press_start_font;
 static SDL_Color text_color = {255, 255, 255};
 static SDL_Game_Config game_config = {};
 static SDL_Game_Code game_code = {};
+static Memory memory;
 Game_Data game;
 
 void SDL_platform_unload_game_code() {
@@ -62,6 +34,7 @@ void SDL_platform_unload_game_code() {
 
     game_code.is_valid = false;
     game_code.game_init = game_init_stub;
+    game_code.game_refresh = game_refresh_stub;
     game_code.game_handle_input = game_handle_input_stub;
     game_code.game_update_and_render = game_update_and_render_stub;
     game_code.game_sound_and_debug = game_sound_and_debug_stub;
@@ -117,6 +90,9 @@ SDL_Game_Code SDL_platform_load_game_code() {
     result.game_init =
         (game_init_func) SDL_LoadFunction(result.game_code_dll,
                                           "GAME_INIT");
+    result.game_refresh =
+        (game_refresh_func) SDL_LoadFunction(result.game_code_dll,
+                                          "GAME_REFRESH");
     result.game_handle_input =
         (game_handle_input_func) SDL_LoadFunction(result.game_code_dll,
                                                   "GAME_HANDLE_INPUT");
@@ -128,6 +104,7 @@ SDL_Game_Code SDL_platform_load_game_code() {
                                                      "GAME_SOUND_AND_DEBUG");
 
     assert(result.game_init &&
+           result.game_refresh &&
            result.game_handle_input &&
            result.game_update_and_render &&
            result.game_sound_and_debug);
@@ -190,11 +167,11 @@ int ini_parser_callback(void* user,
                         const char* section,
                         const char* name,
                         const char* value) {
-    Game_Options *poptions = (Game_Options *)user;
+    Game_Options *p_options = (Game_Options *)user;
 
 #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
     if (MATCH("Options", "music_volume")) {
-        poptions->music_volume = atof(value);
+        p_options->music_volume = atof(value);
     } else {
         return 0;
     }
@@ -242,13 +219,18 @@ void on_init(SDL_Window *window, SDL_Renderer *renderer) {
     game.running = true;
     game.window = window;
     game.renderer = renderer;
-    game_code.game_init(&game);
+    game_code.game_init(&game, &memory.game_state);
+}
+
+void on_refresh() {
+    assert(game_code.is_valid);
+    game_code.game_refresh(&game, &memory.game_state);
 }
 
 int main() {
     u64 START, END;
     u32 fps_value = 0;
-    r32 internal_delta_time_value = 0;
+    r32 delta_time_value = 0;
     SDL_Window *window;
     SDL_Renderer *renderer;
 
@@ -298,77 +280,82 @@ int main() {
     on_init(window, renderer);
 
     // FONT
-    press_start_font = TTF_OpenFont("assets/PressStart2P-Regular.ttf", 14);
+    press_start_font = TTF_OpenFont("assets/PressStart2P-Regular.ttf", 12);
 
     while (game.running) {
-        START = SDL_GetPerformanceCounter();
-
         if (game_code.is_valid) {
-            game_code.game_handle_input(&game);
-        }
+            START = SDL_GetPerformanceCounter();
 
-        SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 255);
-        SDL_RenderClear(game.renderer);
 
-        if (game_code.is_valid) {
-            game_code.game_update_and_render(&game);
-        }
+            game_code.game_handle_input();
+
+
+            SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 255);
+            SDL_RenderClear(game.renderer);
+
+            game_code.game_update_and_render();
 
 #if DEBUG_MODE
-        // DEBUG
-        SDL_Rect ft_rect, fps_rect;
+            // TODO: Temp solution to draw FPS/Frametime
+            // This needs to be moved to UI rendering.
+            SDL_Rect ft_rect, fps_rect;
 
-        // Show FRAMETIME
-        char ft_amount[12];
+            // Show FRAMETIME
+            char ft_amount[12];
 
-        ft_rect.x = 0;
-        ft_rect.y = 0;
-        ft_rect.w = 180;
-        ft_rect.h = 15;
+            sprintf(ft_amount, "FRAMETIME %f ms", (delta_time_value * 1000));
+            SDL_Surface *ft_surface = TTF_RenderText_Solid(press_start_font,
+                                                           ft_amount,
+                                                           text_color);
+            SDL_Texture *ft_texture = SDL_CreateTextureFromSurface(game.renderer,
+                                                                   ft_surface);
 
-        sprintf(ft_amount, "FRAMETIME %f ms", (internal_delta_time_value * 1000));
-        SDL_Surface *ft_surface = TTF_RenderText_Solid(press_start_font, ft_amount, text_color);
-        SDL_Texture *ft_texture = SDL_CreateTextureFromSurface(game.renderer, ft_surface);
-        SDL_FreeSurface(ft_surface);
+            ft_rect.x = 0;
+            ft_rect.y = 0;
+            ft_rect.w = ft_surface->w;
+            ft_rect.h = ft_surface->h;
 
-        // Show FPS
-        char fps_amount[12];
+            // Show FPS
+            char fps_amount[12];
 
-        fps_rect.x = ft_rect.x;
-        fps_rect.y = ft_rect.y + ft_rect.h + 5;
-        fps_rect.w = 0.3f * ft_rect.w;
-        fps_rect.h = 0.5f * ft_rect.h;
-
-        sprintf(fps_amount, "FPS %d", fps_value);
-        SDL_Surface *fps_surface = TTF_RenderText_Solid(press_start_font, fps_amount, text_color);
-        SDL_Texture *fps_texture = SDL_CreateTextureFromSurface(game.renderer, fps_surface);
-        SDL_FreeSurface(fps_surface);
+            sprintf(fps_amount, "FPS %d", fps_value);
+            SDL_Surface *fps_surface = TTF_RenderText_Solid(press_start_font,
+                                                            fps_amount,
+                                                            text_color);
+            SDL_Texture *fps_texture = SDL_CreateTextureFromSurface(game.renderer,
+                                                                    fps_surface);
 
 
-        SDL_RenderCopy(game.renderer, ft_texture, NULL, &ft_rect);
-        SDL_RenderCopy(game.renderer, fps_texture, NULL, &fps_rect);
+            fps_rect.x = ft_rect.x;
+            fps_rect.y = ft_rect.y + ft_rect.h + 5;
+            fps_rect.w = fps_surface->w;
+            fps_rect.h = fps_surface->h;
+
+            SDL_RenderCopy(game.renderer, ft_texture, NULL, &ft_rect);
+            SDL_RenderCopy(game.renderer, fps_texture, NULL, &fps_rect);
+
+            SDL_FreeSurface(ft_surface);
+            SDL_FreeSurface(fps_surface);
+            SDL_DestroyTexture(ft_texture);
+            SDL_DestroyTexture(fps_texture);
 #endif
 
-        SDL_RenderPresent(game.renderer);
+            SDL_RenderPresent(game.renderer);
 
-        r32 FREQ = (r32)SDL_GetPerformanceFrequency();
-        END = SDL_GetPerformanceCounter();
-        game.delta_time = ((END - START) * GAME_SPEED_MULTIPLIER) / FREQ;
+            r32 FREQ = (r32)SDL_GetPerformanceFrequency();
+            END = SDL_GetPerformanceCounter();
+            delta_time_value = (END - START) / FREQ;
+            fps_value = (u32)(1.0f / delta_time_value);
+            game.delta_time = delta_time_value;
 
-#if DEBUG_MODE
-        fps_value = (u32)(1.0f / ((END-START) / FREQ));
-        internal_delta_time_value = (END - START) / FREQ;
-#endif
-
-        if (game_code.is_valid) {
-            game_code.game_sound_and_debug(&game);
+            game_code.game_sound_and_debug();
         }
-
 #if DEBUG_MODE
         if (SDL_platform_code_changed()) {
             SDL_platform_unload_game_code();
 
             game_code = SDL_platform_load_game_code();
+            on_refresh();
         }
 
         if (SDL_platform_config_changed()) {
