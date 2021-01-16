@@ -268,9 +268,7 @@ int main() {
                               SDL_WINDOW_SHOWN|
                               SDL_WINDOW_RESIZABLE);
 
-    renderer = SDL_CreateRenderer(window, -1,
-                                  SDL_RENDERER_ACCELERATED|
-                                  SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     // Recalculate renderer scale
     SDL_RenderSetScale(renderer,

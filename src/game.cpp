@@ -28,8 +28,33 @@ static Uint32 last_update;
 static bool show_box_colliders = true;
 static Uint32 fullscreen_toggle = 0;
 
-bool is_point_empty() {
-    return true;
+const u32 TILEMAP_SIZE_X = 17;
+const u32 TILEMAP_SIZE_Y = 9;
+
+struct Tilemap {
+    u32 count_x;
+    u32 count_y;
+
+    i32 upper_left_x;
+    i32 upper_left_y;
+    u32 width;
+    u32 height;
+
+    u32 *tiles;
+};
+
+bool is_point_empty(Tilemap *tilemap, Vector2 test_point) {
+    bool is_empty = false;
+
+    u32 tile_x = (u32)((test_point.x - tilemap->upper_left_x) / tilemap->width);
+    u32 tile_y = (u32)((test_point.y - tilemap->upper_left_y) / tilemap->height);
+
+    if (test_point.x >= 0 && test_point.x < tilemap->count_x * tilemap->width &&
+        test_point.y >= 0 && test_point.y < tilemap->count_y * tilemap->height) {
+        is_empty  = (tilemap->tiles[tile_y * tilemap->count_x + tile_x] == 0);
+    }
+
+    return is_empty;
 }
 
 void GAME_INIT(Game_Data *g, Game_State *state) {
@@ -79,7 +104,7 @@ void GAME_INIT(Game_Data *g, Game_State *state) {
     };
 
     game->entity_list.e[0].type = PLAYER;
-    game->entity_list.e[0].size.w = 32;
+    game->entity_list.e[0].size.w = 24;
     game->entity_list.e[0].size.h = 32;
     game->entity_list.e[0].position = game_state->player_position;
 
@@ -106,7 +131,8 @@ void GAME_HANDLE_INPUT() {
                     float new_height = event.window.data2;
                     float aspect_ratio_result;
 
-                    // Keep aspect ratio 16:9 all the time
+                    // Keep aspect ratio defined in
+                    // ASPECT_RATIO_WIDTH & ASPECT_RATIO_HEIGHT
                     if (new_width != game->window_width) {
                         aspect_ratio_result = new_width / ASPECT_RATIO_WIDTH;
                         new_height = aspect_ratio_result * ASPECT_RATIO_HEIGHT;
@@ -185,7 +211,7 @@ void GAME_UPDATE_AND_RENDER() {
 
     // Entity *player = entity_get_player(game);
     // TODO Move to player entity
-    f32 velocity = 175.0f * game->delta_time;
+    f32 velocity = 128.0f * game->delta_time;
     Vector2 d_player_position = movement * velocity;
 
     if (movement.x < 0) {
@@ -214,44 +240,79 @@ void GAME_UPDATE_AND_RENDER() {
 
     // render_tilemap(game);
     // TILEMAP
-    const u32 TILEMAP_SIZE_X = 17;
-    const u32 TILEMAP_SIZE_Y = 9;
-    i32 tilemap[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+    Tilemap tilemap = {};
+
+    tilemap.count_x = TILEMAP_SIZE_X;
+    tilemap.count_y = TILEMAP_SIZE_Y;
+    tilemap.upper_left_x = -5;
+    tilemap.upper_left_y = -5;
+    tilemap.width = 42;
+    tilemap.height = 40;
+
+    // (COUNT_X * Y) + (X - 1)
+    // (17 * 4) + (8 - 1)
+    // 68 + 7
+    // 75
+
+    u32 tiles[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
         {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
         {1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
-        {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+        {1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1}
+    };
+
+    u32 tiles2[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
     };
-    //tilemap[4][8] = 1;
-    i32 upper_left = -5;
-    u32 tile_width = 42;
-    u32 tile_height = 40;
+
+
+    tilemap.tiles = (u32 *)tiles2;
 
     Vector2 new_player_position = game_state->player_position + d_player_position;
-    i32 player_point_x = new_player_position.x - (0.5f * player->size.w);
-    i32 player_point_y = new_player_position.y - player->size.h;
 
-    i32 tile_x = new_player_position.x / tile_width;
-    i32 tile_y = new_player_position.y / tile_height;
+    Vector2 player_left = {
+        new_player_position.x,
+        new_player_position.y + (0.8f * player->size.h)
+    };
 
-    if (tilemap[tile_y][tile_x] == 0) {
+    Vector2 player_right = {
+        new_player_position.x + player->size.w,
+        new_player_position.y + (0.8f * player->size.h)
+    };
+
+    Vector2 player_center = {
+        new_player_position.x + (0.5f * player->size.w),
+        new_player_position.y + (0.8f * player->size.h)
+    };
+
+    if (is_point_empty(&tilemap, player_center) &&
+        is_point_empty(&tilemap, player_left) &&
+       is_point_empty(&tilemap, player_right)) {
         game_state->player_position = new_player_position;
     }
 
-    for (u32 column = 0; column < TILEMAP_SIZE_X; ++column) {
-        for (u32 row = 0; row < TILEMAP_SIZE_Y; ++row) {
+    for (u32 column = 0; column < tilemap.count_x; ++column) {
+        for (u32 row = 0; row < tilemap.count_y; ++row) {
             SDL_Rect dst_rect;
-            u32 tile_id = tilemap[row][column];
+            u32 tile_id = tilemap.tiles[row * tilemap.count_x + column];
 
-            dst_rect.x = upper_left + (column * tile_width);
-            dst_rect.y = upper_left + (row * tile_height);
-            dst_rect.w = tile_width;
-            dst_rect.h = tile_height;
+            dst_rect.x = tilemap.upper_left_x + (column * tilemap.width);
+            dst_rect.y = tilemap.upper_left_y + (row * tilemap.height);
+            dst_rect.w = tilemap.width;
+            dst_rect.h = tilemap.height;
 
             SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
 
@@ -259,11 +320,9 @@ void GAME_UPDATE_AND_RENDER() {
                 SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
             }
 
-
             SDL_RenderFillRect(game->renderer, &dst_rect);
         }
     }
-
 
     for (i32 i = 0; i < game->entity_list.count; ++i) {
         Entity e = game->entity_list.e[i];
@@ -273,8 +332,8 @@ void GAME_UPDATE_AND_RENDER() {
 
             dst_rect.x = e.position.x;
             dst_rect.y = e.position.y;
-            dst_rect.w = e.size.x;
-            dst_rect.h = e.size.y;
+            dst_rect.w = e.size.w;
+            dst_rect.h = e.size.h;
 
 #if DEBUG_MODE
             // Render the box collider
