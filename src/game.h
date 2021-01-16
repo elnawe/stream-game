@@ -6,6 +6,18 @@
 #include "SDL.h"
 #include "texture_manager.h"
 
+struct Game_Memory {
+    bool is_initialized;
+
+    u64 permanent_storage_size;
+    void *permanent_storage; // NOTE: Required to be zero-ed out at startup
+
+    u64 transient_storage_size;
+    void *transient_storage; // NOTE: Required to be zero-ed out at startup
+};
+
+////////
+////////
 enum Game_Scene {
                  MENU,
                  GAME,
@@ -14,10 +26,7 @@ enum Game_Scene {
 
 struct Game_State {
     const Uint8 *input;
-    Game_Scene scene;
     Vector2 player_position;
-
-    bool is_initialized;
 };
 
 struct Game_Options {
@@ -43,7 +52,7 @@ struct Game_Data {
 void GAME_INIT(Game_Data *g, Game_State *state);
 void GAME_REFRESH(Game_Data *g, Game_State *state);
 void GAME_HANDLE_INPUT();
-void GAME_UPDATE_AND_RENDER();
+void GAME_UPDATE_AND_RENDER(Game_Memory *memory);
 void GAME_SOUND_AND_DEBUG();
 
 #endif

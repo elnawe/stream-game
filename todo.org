@@ -1,3 +1,6 @@
+** DONE from 1/16 and 1/17 (Weekend)
+*** DONE [CODE] Preallocate memory before running the game
+
 * TODO [CODE] Collision with tiles!
 * TODO [CODE] Initialize game_state somewhere
 * TODO [CODE] Player movement should be assigned to the World struct
@@ -6,13 +9,13 @@
 * TODO [CODE] Start using precision floating point SDL_FRect
 * TODO [CODE] Clean up types
 
-
-* DONE STREAM(1/12) [CODE] Add types.h file
-* DONE STREAM(1/12) [CODE] Add operator overload for Vector2
-* DONE [CODE] Runtime config file!!!
-* DONE [ BUG] Memory error while reloading code DLL
+* ARCHIVE
+** DONE STREAM(1/12) [CODE] Add types.h file
+** DONE STREAM(1/12) [CODE] Add operator overload for Vector2
+** DONE [CODE] Runtime config file!!!
+** DONE [ BUG] Memory error while reloading code DLL
   game_code.is_valid checks before running the frame
-* DONE [UTIL] Create TODO.bat script to get all // TODO(s)
-* DONE [CODE] Show FPS/frametime
-* DONE [ BUG] Memory leak on FPS/Frametime counter
-* DONE [CODE] Move game memory to the game_state
+** DONE [UTIL] Create TODO.bat script to get all // TODO(s)
+** DONE [CODE] Show FPS/frametime
+** DONE [ BUG] Memory leak on FPS/Frametime counter
+** DONE [CODE] Move game memory to the game_state

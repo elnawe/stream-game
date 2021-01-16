@@ -10,13 +10,11 @@
 #include "SDL_ttf.h"
 #include "texture_manager.h"
 #include "types.h"
-//#include "world.h"
 
 // Compile only these...
 #include "entity.cpp"
 #include "item.cpp"
 #include "texture_manager.cpp"
-//#include "world.cpp"
 
 static Game_Data *game;
 static Game_State *game_state;
@@ -43,11 +41,17 @@ struct Tilemap {
     u32 *tiles;
 };
 
+u32 truncate_r32_to_u32(r32 number) {
+    return (u32)(number);
+}
+
 bool is_point_empty(Tilemap *tilemap, Vector2 test_point) {
     bool is_empty = false;
 
-    u32 tile_x = (u32)((test_point.x - tilemap->upper_left_x) / tilemap->width);
-    u32 tile_y = (u32)((test_point.y - tilemap->upper_left_y) / tilemap->height);
+    u32 tile_x =
+        truncate_r32_to_u32((test_point.x - tilemap->upper_left_x) / tilemap->width);
+    u32 tile_y =
+        truncate_r32_to_u32((test_point.y - tilemap->upper_left_y) / tilemap->height);
 
     if (test_point.x >= 0 && test_point.x < tilemap->count_x * tilemap->width &&
         test_point.y >= 0 && test_point.y < tilemap->count_y * tilemap->height) {
@@ -196,7 +200,15 @@ void GAME_HANDLE_INPUT() {
     // }
 }
 
-void GAME_UPDATE_AND_RENDER() {
+void GAME_UPDATE_AND_RENDER(Game_Memory *memory) {
+    assert(sizeof(Game_State) <= memory->permanent_storage_size);
+    // TODO: Change to game_state
+    Game_State *g_state = (Game_State *)memory->permanent_storage;
+
+    if (!memory->is_initialized) {
+
+        memory->is_initialized = true;
+    }
     Vector2 movement;
     Entity *player = &game->entity_list.e[0];
 
@@ -248,11 +260,6 @@ void GAME_UPDATE_AND_RENDER() {
     tilemap.upper_left_y = -5;
     tilemap.width = 42;
     tilemap.height = 40;
-
-    // (COUNT_X * Y) + (X - 1)
-    // (17 * 4) + (8 - 1)
-    // 68 + 7
-    // 75
 
     u32 tiles[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},

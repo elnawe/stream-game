@@ -4,6 +4,27 @@
 #include <stdint.h>
 #include <float.h>
 
+/*
+ * GAME_DEVELOP:
+ *   1 - Slower but double checking for security
+ *   0 - Faster, Performance Mode.
+ *
+ * GAME_INTERNAL:
+ *   1 - Enable internal developer-only mode
+ *   0 - Release mode
+ */
+
+#if GAME_DEVELOP
+    #define assert(expression) if(!(expression)) {*(int *)0 = 0;}
+#else
+    #define assert(expression)
+#endif
+
+#define Kilobytes(value) ((value)*1024LL)
+#define Megabytes(value) (Kilobytes(value)*1024LL)
+#define Gigabytes(value) (Megabytes(value)*1024LL)
+#define Terabytes(value) (Gigabytes(value)*1024LL)
+
 typedef uint8_t   u8;
 typedef uint16_t u16;
 typedef uint32_t u32;

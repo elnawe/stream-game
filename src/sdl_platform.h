@@ -8,14 +8,14 @@
 typedef void (*game_init_func) (Game_Data *game, Game_State *state);
 typedef void (*game_refresh_func) (Game_Data *game, Game_State *state);
 typedef void (*game_handle_input_func) ();
-typedef void (*game_update_and_render_func) ();
+typedef void (*game_update_and_render_func) (Game_Memory *memory);
 typedef void (*game_sound_and_debug_func) ();
 
 // Stub functions
 void game_init_stub(Game_Data *it, Game_State *state){}
 void game_refresh_stub(Game_Data *game, Game_State *state){}
 void game_handle_input_stub(){}
-void game_update_and_render_stub(){}
+void game_update_and_render_stub(Game_Memory *it){}
 void game_sound_and_debug_stub(){}
 
 struct SDL_Game_Code {
