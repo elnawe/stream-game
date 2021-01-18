@@ -25,7 +25,6 @@ enum Game_Scene {
 };
 
 struct Game_State {
-    const Uint8 *input;
     Vector2 player_position;
 };
 

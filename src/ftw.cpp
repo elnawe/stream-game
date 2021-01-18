@@ -68,7 +68,6 @@ bool is_point_empty(Tilemap *tilemap, Vector2 test_point) {
 extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     assert(sizeof(Game_State) <= memory->permanent_storage_size);
 
-    // TODO: Change to game_state
     Game_State *game_state = (Game_State *)memory->permanent_storage;
 
     if (!memory->is_initialized) {
