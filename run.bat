@@ -1,3 +1,3 @@
 @echo off
 
-call build\stream.exe
+call build\FTW.exe

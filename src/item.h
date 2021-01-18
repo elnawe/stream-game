@@ -1,7 +1,7 @@
 #ifndef ITEM_H
 #define ITEM_H
 
-#include "math.h"
+#include "ftw_math.h"
 
 struct Item {
     const char *name;
