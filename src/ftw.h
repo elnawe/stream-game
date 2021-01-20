@@ -26,6 +26,9 @@ enum Game_Scene {
 
 struct Game_State {
     Vector2 player_position;
+
+    i32 player_tilemap_x;
+    i32 player_tilemap_y;
 };
 
 struct Game_Options {
@@ -75,6 +78,10 @@ struct Game_Input_Keyboard {
             Game_Button_State move_down;
             Game_Button_State move_left;
             Game_Button_State move_right;
+
+            // TODO: WAT?!?!
+            Game_Button_State action;
+            Game_Button_State reset;
         };
     };
 };
