@@ -2,7 +2,8 @@
   Player movement is faster on diagonals
 * TODO [CODE] Start using precision floating point SDL_FRect
 * TODO [CODE] Clean up types
-
+* TODO Player gets stuck in the wall when trying to go up.
+  Sprite seems to go through but the sprite is smaller than the collision check.
 * ARCHIVE
 ** DONE STREAM(1/12) [CODE] Add types.h file
 ** DONE STREAM(1/12) [CODE] Add operator overload for Vector2

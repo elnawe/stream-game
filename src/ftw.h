@@ -6,6 +6,8 @@
 #include "SDL.h"
 #include "texture_manager.h"
 
+#include "ftw_world.h"
+
 struct Game_Memory {
     bool is_initialized;
 
@@ -29,6 +31,11 @@ struct Game_State {
 
     i32 player_tilemap_x;
     i32 player_tilemap_y;
+
+
+    // TEMP STATE
+    World world;
+    Floor floor;
 };
 
 struct Game_Options {
