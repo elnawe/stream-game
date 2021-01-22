@@ -10,16 +10,12 @@
 #include <time.h>
 
 u8 random(u8 max_value) {
-    srand(time(NULL) * SDL_GetTicks());
-
     u8 result = rand()%(max_value + 1);
 
     return result;
 }
 
-u8 random_range(u8 min_value, u8 max_value, u32 seed) {
-    srand(seed);
-
+u8 random_range(u8 min_value, u8 max_value) {
     u8 result = min_value + rand()%((max_value + 1) - min_value);
 
     return result;

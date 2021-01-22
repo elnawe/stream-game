@@ -36,9 +36,9 @@ global_var Uint32 fullscreen_toggle = 0;
 global_var Floor game_floor;
 global_var World world = {};
 global_var Tilemap rooms[FLOOR_SIZE][FLOOR_SIZE];
-global_var u8 try_colorR = random_range(20, 255, 1278903718);
-global_var u8 try_colorG = random_range(20, 255, 9456748956);
-global_var u8 try_colorB = random_range(20, 255, 45873894579);
+global_var u8 try_colorR = random_range(20, 255);
+global_var u8 try_colorG = random_range(20, 255);
+global_var u8 try_colorB = random_range(20, 255);
 
 global_var u32 floor_rooms[FLOOR_SIZE][FLOOR_SIZE] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -233,6 +233,9 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     Game_State *game_state = (Game_State *)memory->permanent_storage;
 
     if (!memory->is_initialized) {
+        // Random Seed
+        srand(time(NULL));
+
         game = game;
         // TODO: Legacy code to be removed once we start using
         //       the permanent/transient storage.
@@ -283,83 +286,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         game->entity_list.e[0].size.h = 32;
         game->entity_list.e[0].position = game_state->player_position;
 
-        ///
-        /// FLOOR STATS HERE
-        /// TODO: Check this out! Floor logic
-        ///
-        game_floor.count_x = FLOOR_SIZE;
-        game_floor.count_y = FLOOR_SIZE;
-        game_floor.max_rooms = 20;
-        game_floor.min_rooms = 8;
-        game_floor.total_rooms =
-            game_floor.min_rooms +
-            random(game_floor.max_rooms - game_floor.min_rooms);
-
-        game_floor.rooms = (u32 *)floor_rooms;
-
-        game_state->floor = game_floor;
-
-        local_var u32 gen_pos_x = FLOOR_SIZE / 2;
-        local_var u32 gen_pos_y = FLOOR_SIZE / 2;
-
-        floor_rooms[gen_pos_y][gen_pos_x] = 1;
-
-        while (game_state->floor.discovered < game_state->floor.total_rooms) {
-            u32 new_direction = random(3);
-
-            if (new_direction == FloorGenMove_Up && gen_pos_y > 0) {
-                gen_pos_y -= 1;
-            } else if (new_direction == FloorGenMove_Right && gen_pos_x < FLOOR_SIZE) {
-                gen_pos_x += 1;
-            } else if (new_direction == FloorGenMove_Down && gen_pos_y < FLOOR_SIZE) {
-                gen_pos_y += 1;
-            } else if (new_direction == FloorGenMove_Left && gen_pos_x > 0) {
-                gen_pos_x -= 1;
-            }
-
-            if (floor_rooms[gen_pos_y][gen_pos_x] == 0) {
-                floor_rooms[gen_pos_y][gen_pos_x] = 1;
-                game_state->floor.discovered++;
-            }
-        }
-
-        world.tile_count_x = FLOOR_SIZE;
-        world.tile_count_y = FLOOR_SIZE;
-        world.count_x = TILEMAP_SIZE_X;
-        world.count_y = TILEMAP_SIZE_Y;
-        world.offset_x = -5;
-        world.offset_y = -5;
-        world.width = 42;
-        world.height = 40;
-
-        for (u32 gen_y = 0; gen_y < FLOOR_SIZE; ++gen_y) {
-            for (u32 gen_x = 0; gen_x < FLOOR_SIZE; ++gen_x) {
-                if (game_state->floor.rooms[gen_y*FLOOR_SIZE + gen_x] == 1) {
-                    u32 pick_room = random(3);
-
-                    switch(pick_room) {
-                        case 0: {
-                            rooms[gen_y][gen_x].tiles = (u32 *)room_nesw00;
-                        } break;
-                        case 1: {
-                            rooms[gen_y][gen_x].tiles = (u32 *)room_nesw01;
-                        } break;
-                        case 2: {
-                            rooms[gen_y][gen_x].tiles = (u32 *)room_nesw02;
-                        } break;
-                        case 3: {
-                            rooms[gen_y][gen_x].tiles = (u32 *)room_nesw03;
-                        } break;
-                    }
-                } else {
-                    rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
-                }
-            }
-        }
-
-        world.tilemaps = (Tilemap *)rooms;
-        game_state->world = world;
-
         memory->is_initialized = true;
     }
 
@@ -406,12 +332,98 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         }
     }
 
+    ///
+    /// FLOOR STATS HERE
+    /// TODO: Check this out! Floor logic
+    ///
+    game_floor.count_x = FLOOR_SIZE;
+    game_floor.count_y = FLOOR_SIZE;
+    game_floor.max_rooms = 20;
+    game_floor.min_rooms = 8;
+    game_floor.total_rooms =
+        game_floor.min_rooms +
+        random(game_floor.max_rooms - game_floor.min_rooms);
+
+    game_floor.rooms = (u32 *)floor_rooms;
+
+    local_var u32 gen_pos_x = FLOOR_SIZE / 2;
+    local_var u32 gen_pos_y = FLOOR_SIZE / 2;
+
+    floor_rooms[gen_pos_y][gen_pos_x] = 1;
+
+    while (game_floor.discovered < game_floor.total_rooms) {
+        u32 new_direction = random(3);
+
+        if (new_direction == FloorGenMove_Up && gen_pos_y > 0) {
+            gen_pos_y -= 1;
+        } else if (new_direction == FloorGenMove_Right && gen_pos_x < FLOOR_SIZE) {
+            gen_pos_x += 1;
+        } else if (new_direction == FloorGenMove_Down && gen_pos_y < FLOOR_SIZE) {
+            gen_pos_y += 1;
+        } else if (new_direction == FloorGenMove_Left && gen_pos_x > 0) {
+            gen_pos_x -= 1;
+        }
+
+        if (floor_rooms[gen_pos_y][gen_pos_x] == 0) {
+            floor_rooms[gen_pos_y][gen_pos_x] = 1;
+            game_floor.discovered++;
+        }
+    }
+
+    world.tile_count_x = FLOOR_SIZE;
+    world.tile_count_y = FLOOR_SIZE;
+    world.count_x = TILEMAP_SIZE_X;
+    world.count_y = TILEMAP_SIZE_Y;
+    world.offset_x = -5;
+    world.offset_y = -5;
+    world.width = 42;
+    world.height = 40;
+
+    local_var bool gen_done;
+    local_var u32 gen_y, gen_x;
+
+    while (!gen_done) {
+        if (game_floor.rooms[gen_y*FLOOR_SIZE + gen_x] == 1) {
+            u32 pick_room = random(3);
+
+            switch(pick_room) {
+                case 0: {
+                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw00;
+                } break;
+                case 1: {
+                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw01;
+                } break;
+                case 2: {
+                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw02;
+                } break;
+                case 3: {
+                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw03;
+                } break;
+            }
+        } else {
+            rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
+        }
+
+        gen_x++;
+
+        if (gen_y == FLOOR_SIZE) {
+            gen_done = true;
+        }
+
+        if (gen_x == FLOOR_SIZE) {
+            gen_x = 0;
+            gen_y++;
+        }
+    }
+
+    world.tilemaps = (Tilemap *)rooms;
+
     // render_tilemap(game);
     // TILEMAP
 
     Vector2 new_player_position = game_state->player_position + d_player_position;
 
-    Tilemap *tilemap = get_tilemap(&game_state->world,
+    Tilemap *tilemap = get_tilemap(&world,
                                    game_state->player_tilemap_x,
                                    game_state->player_tilemap_y);
     assert(tilemap);
@@ -427,17 +439,17 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     Raw_Position player_right = player_position;
     player_right.x += 0.5f*player->size.w;
 
-    if (is_world_point_empty(&game_state->world, player_position) &&
-        is_world_point_empty(&game_state->world, player_left) &&
-        is_world_point_empty(&game_state->world, player_right)) {
-        World_Position new_position = get_world_position(&game_state->world, player_position);
+    if (is_world_point_empty(&world, player_position) &&
+        is_world_point_empty(&world, player_left) &&
+        is_world_point_empty(&world, player_right)) {
+        World_Position new_position = get_world_position(&world, player_position);
 
         if ((game_state->player_tilemap_x != new_position.tilemap_x) ||
             (game_state->player_tilemap_y != new_position.tilemap_y)) {
             printf("NEW ROOM DISCOVERED: (%d, %d)\n", new_position.tilemap_x, new_position.tilemap_y);
-            try_colorR = random_range(20, 255, SDL_GetTicks() * 345);
-            try_colorG = random_range(20, 255, SDL_GetTicks() * 890);
-            try_colorB = random_range(20, 255, SDL_GetTicks() * 39124);
+            try_colorR = random_range(20, 255);
+            try_colorG = random_range(20, 255);
+            try_colorB = random_range(20, 255);
         }
 
         game_state->player_tilemap_x = new_position.tilemap_x;
@@ -452,7 +464,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     for (int row = 0; row < world.count_y; ++row) {
         for (int column = 0; column < world.count_x; ++column) {
             SDL_Rect dst_rect;
-            i32 tile_value = get_tile_value(&game_state->world, tilemap, column, row);
+            i32 tile_value = get_tile_value(&world, tilemap, column, row);
 
             dst_rect.x = world.offset_x + (column * world.width);
             dst_rect.y = world.offset_y + (row * world.height);
