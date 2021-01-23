@@ -21,9 +21,9 @@ struct Game_Memory {
 ////////
 ////////
 enum Game_Scene {
-                 MENU,
-                 GAME,
-                 PAUSE
+    MENU,
+    GAME,
+    PAUSE
 };
 
 struct Game_State {
@@ -32,10 +32,10 @@ struct Game_State {
     i32 player_tilemap_x;
     i32 player_tilemap_y;
 
-
-    // TEMP STATE
-    World world;
-    Floor floor;
+    // TEMP
+    bool world_generated;
+    u32 *world_map;
+    Tilemap rooms[22][22];
 };
 
 struct Game_Options {

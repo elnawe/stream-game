@@ -21,22 +21,29 @@ struct Floor {
 };
 
 struct Tilemap {
+    u32 colorR;
+    u32 colorG;
+    u32 colorB;
+
     u32 *tiles;
 };
 
 
-// TODO: Use the world struct. I will convert these screen pixels to something that
-//       exists in the real world, like meter.
+// TODO: Use the world struct. I will convert these screen pixels
+//       to something that exists in the real world, like meters.
+//       Single 32-bit value for
 struct World {
+    r32 tile_side_meters;
+    s32 tile_side_pixels;
+
     u32 tile_count_x;
     u32 tile_count_y;
 
     u32 count_x;
     u32 count_y;
-    i32 offset_x;
-    i32 offset_y;
-    i32 width;
-    i32 height;
+
+    s32 offset_x;
+    s32 offset_y;
 
     Tilemap *tilemaps;
 };
@@ -50,6 +57,8 @@ struct World_Position {
 
     // NOTE: X and Y relative to the tile
     //       (top-left corner of the tile)
+    // Math friendly, resolution independent of
+    // world units relative to a tile.
     r32 tile_relative_x;
     r32 tile_relative_y;
 };

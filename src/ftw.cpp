@@ -34,11 +34,7 @@ global_var Uint32 last_update;
 global_var bool show_box_colliders = true;
 global_var Uint32 fullscreen_toggle = 0;
 global_var Floor game_floor;
-global_var World world = {};
 global_var Tilemap rooms[FLOOR_SIZE][FLOOR_SIZE];
-global_var u8 try_colorR = random_range(20, 255);
-global_var u8 try_colorG = random_range(20, 255);
-global_var u8 try_colorB = random_range(20, 255);
 
 global_var u32 floor_rooms[FLOOR_SIZE][FLOOR_SIZE] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -133,16 +129,16 @@ inline World_Position get_world_position(World *world, Raw_Position position) {
 
     r32 X = position.x - world->offset_x;
     r32 Y = position.y - world->offset_y;
-    result.tile_x = floor_r32_to_i32(X / world->width);
-    result.tile_y = floor_r32_to_i32(Y / world->height);
+    result.tile_x = floor_r32_to_i32(X / world->tile_side_pixels);
+    result.tile_y = floor_r32_to_i32(Y / world->tile_side_pixels);
 
-    result.tile_relative_x = X - (result.tile_x*world->width);
-    result.tile_relative_y = Y - (result.tile_y*world->height);
+    result.tile_relative_x = X - (result.tile_x*world->tile_side_pixels);
+    result.tile_relative_y = Y - (result.tile_y*world->tile_side_pixels);
 
     assert(result.tile_relative_x >= 0);
     assert(result.tile_relative_y >= 0);
-    assert(result.tile_relative_x < world->width);
-    assert(result.tile_relative_y < world->height);
+    assert(result.tile_relative_x < world->tile_side_pixels);
+    assert(result.tile_relative_y < world->tile_side_pixels);
 
     if (result.tile_x < 0) {
         result.tile_x = world->count_x + result.tile_x;
@@ -198,8 +194,8 @@ bool is_tilemap_point_empty(World *world,
     bool is_empty = false;
 
     if (tilemap) {
-        if (test_tile_x >= 0 && test_tile_x < world->count_x * world->width &&
-            test_tile_y >= 0 && test_tile_y < world->count_y * world->height) {
+        if (test_tile_x >= 0 && test_tile_x < world->count_x * world->tile_side_pixels &&
+            test_tile_y >= 0 && test_tile_y < world->count_y * world->tile_side_pixels) {
             u32 tile_value = get_tile_value(world, tilemap, test_tile_x, test_tile_y);
 
             is_empty  = (tile_value == 0);
@@ -344,14 +340,15 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         game_floor.min_rooms +
         random(game_floor.max_rooms - game_floor.min_rooms);
 
-    game_floor.rooms = (u32 *)floor_rooms;
+    //game_floor.rooms = game_state->world_map;
 
     local_var u32 gen_pos_x = FLOOR_SIZE / 2;
     local_var u32 gen_pos_y = FLOOR_SIZE / 2;
 
     floor_rooms[gen_pos_y][gen_pos_x] = 1;
 
-    while (game_floor.discovered < game_floor.total_rooms) {
+    while (!game_state->world_generated &&
+           game_floor.discovered < game_floor.total_rooms) {
         u32 new_direction = random(3);
 
         if (new_direction == FloorGenMove_Up && gen_pos_y > 0) {
@@ -368,22 +365,27 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             floor_rooms[gen_pos_y][gen_pos_x] = 1;
             game_floor.discovered++;
         }
+
+        game_state->world_map = (u32 *)floor_rooms;
     }
+
+    World world = {};
+
+    world.tile_side_meters = 1.4f;
+    world.tile_side_pixels = 40;
 
     world.tile_count_x = FLOOR_SIZE;
     world.tile_count_y = FLOOR_SIZE;
     world.count_x = TILEMAP_SIZE_X;
     world.count_y = TILEMAP_SIZE_Y;
-    world.offset_x = -5;
+    world.offset_x = -10;
     world.offset_y = -5;
-    world.width = 42;
-    world.height = 40;
 
     local_var bool gen_done;
     local_var u32 gen_y, gen_x;
 
-    while (!gen_done) {
-        if (game_floor.rooms[gen_y*FLOOR_SIZE + gen_x] == 1) {
+    while (!game_state->world_generated && !gen_done) {
+        if (game_state->world_map[gen_y*FLOOR_SIZE + gen_x] == 1) {
             u32 pick_room = random(3);
 
             switch(pick_room) {
@@ -404,10 +406,23 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
         }
 
+        rooms[gen_y][gen_x].colorR = random_range(20, 255);
+        rooms[gen_y][gen_x].colorG = random_range(20, 255);
+        rooms[gen_y][gen_x].colorB = random_range(20, 255);
+
         gen_x++;
 
+        // TODO: This save to game_state will need to be removed once tiles
+        //       are converted into entities.
         if (gen_y == FLOOR_SIZE) {
             gen_done = true;
+            game_state->world_generated = true;
+
+            for (int X = 0; X < 22; ++X) {
+                for (int Y = 0; Y < 22; ++Y) {
+                    game_state->rooms[Y][X] = rooms[Y][X];
+                }
+            }
         }
 
         if (gen_x == FLOOR_SIZE) {
@@ -416,7 +431,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         }
     }
 
-    world.tilemaps = (Tilemap *)rooms;
+    world.tilemaps = (Tilemap *)game_state->rooms;
 
     // render_tilemap(game);
     // TILEMAP
@@ -447,17 +462,14 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         if ((game_state->player_tilemap_x != new_position.tilemap_x) ||
             (game_state->player_tilemap_y != new_position.tilemap_y)) {
             printf("NEW ROOM DISCOVERED: (%d, %d)\n", new_position.tilemap_x, new_position.tilemap_y);
-            try_colorR = random_range(20, 255);
-            try_colorG = random_range(20, 255);
-            try_colorB = random_range(20, 255);
         }
 
         game_state->player_tilemap_x = new_position.tilemap_x;
         game_state->player_tilemap_y = new_position.tilemap_y;
         game_state->player_position.x =
-            world.offset_x + world.width * new_position.tile_x + new_position.tile_relative_x;
+            world.offset_x + world.tile_side_pixels * new_position.tile_x + new_position.tile_relative_x;
         game_state->player_position.y =
-            world.offset_y + world.height * new_position.tile_y + new_position.tile_relative_y;
+            world.offset_y + world.tile_side_pixels * new_position.tile_y + new_position.tile_relative_y;
 
     }
 
@@ -466,15 +478,19 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             SDL_Rect dst_rect;
             i32 tile_value = get_tile_value(&world, tilemap, column, row);
 
-            dst_rect.x = world.offset_x + (column * world.width);
-            dst_rect.y = world.offset_y + (row * world.height);
-            dst_rect.w = world.width;
-            dst_rect.h = world.height;
+            dst_rect.x = world.offset_x + (column * world.tile_side_pixels);
+            dst_rect.y = world.offset_y + (row * world.tile_side_pixels);
+            dst_rect.w = world.tile_side_pixels;
+            dst_rect.h = world.tile_side_pixels;
 
-            SDL_SetRenderDrawColor(game->renderer, try_colorR, try_colorG, try_colorB, 255);
+            // TODO: This is only demo testing
+            SDL_SetRenderDrawColor(game->renderer,
+                                   tilemap->colorR,
+                                   tilemap->colorG,
+                                   tilemap->colorB, 255);
 
             if (tile_value == 1) {
-                SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
+                SDL_SetRenderDrawColor(game->renderer, 25, 25, 25, 255);
             }
 
             SDL_RenderFillRect(game->renderer, &dst_rect);
