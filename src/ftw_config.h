@@ -14,6 +14,10 @@
 #define CONFIG_FILE_NAME      "run_tree/config.ini"
 #define CONFIG_TEMP_FILE_NAME "run_tree/config.temp.ini"
 
+// If `1`, it will automatically resize the viewport every time
+// the window is resized.
+#define ENABLE_AUTO_RESIZE_VIEWPORT 0
+
 // GRAPHIC WIDTH and HEIGHT are used to define the scale that the renderer will
 // take to show an appropiate size of the 2D art in the game.
 #define ORIGINAL_GRAPHIC_WIDTH  704

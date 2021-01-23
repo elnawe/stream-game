@@ -100,11 +100,11 @@ global_var u32 room_nesw02[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
 global_var u32 room_nesw03[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1},
     {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
     {1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1}
 };
@@ -121,50 +121,50 @@ global_var u32 room_no_exit[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-inline World_Position get_world_position(World *world, Raw_Position position) {
-    World_Position result;
+inline void recanonicalize_coords(World *world,
+                                  i32 tile_count,
+                                  s32 *tilemap_pos,
+                                  s32 *tile_pos,
+                                  r32 *tile_relative_pos) {
+    s32 offset = floor_r32_to_s32(*tile_relative_pos / world->tile_side_meters);
 
-    result.tilemap_x = position.tilemap_x;
-    result.tilemap_y = position.tilemap_y;
+    *tile_pos += offset;
 
-    r32 X = position.x - world->offset_x;
-    r32 Y = position.y - world->offset_y;
-    result.tile_x = floor_r32_to_i32(X / world->tile_side_pixels);
-    result.tile_y = floor_r32_to_i32(Y / world->tile_side_pixels);
+    *tile_relative_pos -= offset*world->tile_side_meters;
 
-    result.tile_relative_x = X - (result.tile_x*world->tile_side_pixels);
-    result.tile_relative_y = Y - (result.tile_y*world->tile_side_pixels);
+    assert(*tile_relative_pos >= 0);
+    assert(*tile_relative_pos < world->tile_side_meters);
 
-    assert(result.tile_relative_x >= 0);
-    assert(result.tile_relative_y >= 0);
-    assert(result.tile_relative_x < world->tile_side_pixels);
-    assert(result.tile_relative_y < world->tile_side_pixels);
-
-    if (result.tile_x < 0) {
-        result.tile_x = world->count_x + result.tile_x;
-        --result.tilemap_x;
+    if (*tile_pos < 0) {
+        *tile_pos = tile_count + *tile_pos;
+        --*tilemap_pos;
     }
 
-    if (result.tile_y < 0) {
-        result.tile_y = world->count_y + result.tile_y;
-        --result.tilemap_y;
+    if (*tile_pos >= tile_count) {
+        *tile_pos = *tile_pos - tile_count;
+        ++*tilemap_pos;
     }
+};
 
-    if (result.tile_x >= world->count_x) {
-        result.tile_x = result.tile_x - world->count_x;
-        ++result.tilemap_x;
-    }
+inline World_Position recanonicalize_position(World *world, World_Position position) {
+    World_Position result = position;
 
-    if (result.tile_y >= world->count_y) {
-        result.tile_y = result.tile_y - world->count_y;
-        ++result.tilemap_y;
-    }
+    recanonicalize_coords(world,
+                          world->count_x,
+                          &result.tilemap_x,
+                          &result.tile_x,
+                          &result.tile_relative_x);
+    recanonicalize_coords(world,
+                          world->count_y,
+                          &result.tilemap_y,
+                          &result.tile_y,
+                          &result.tile_relative_y);
 
     return result;
 }
 
 Tilemap *get_tilemap(World *world, i32 tilemap_x, i32 tilemap_y) {
-    Tilemap *tilemap;// = 0;
+    Tilemap *tilemap = 0;
 
     if (tilemap_x >= 0 && tilemap_x < world->tile_count_x &&
         tilemap_y >= 0 && tilemap_y < world->tile_count_y) {
@@ -206,10 +206,8 @@ bool is_tilemap_point_empty(World *world,
 
 }
 
-bool is_world_point_empty(World *world, Raw_Position test_position) {
+bool is_world_point_empty(World *world, World_Position world_position) {
     bool is_empty = false;
-
-    World_Position world_position = get_world_position(world, test_position);
 
     Tilemap *tilemap = get_tilemap(world,
                                    world_position.tilemap_x,
@@ -232,55 +230,24 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         // Random Seed
         srand(time(NULL));
 
-        game = game;
         // TODO: Legacy code to be removed once we start using
         //       the permanent/transient storage.
         // TODO: remove this with new load_texture/create_entity combo
+        game = game;
         create_entity("assets/player.bmp", &game->entity_list, game->renderer);
 
-        // MUSIC
-        Mix_Music *bgm = Mix_LoadMUS("assets/bgm.mp3");
-        Mix_VolumeMusic(game->options.music_volume * MIX_MAX_VOLUME);
-        Mix_PlayMusic(bgm, -1);
-
-        // NOTE Game stats here
-        // TEXTURES
-        load_texture("ITEMS", "items.bmp", &game->texture_manager, game->renderer);
-        load_texture("TILESET", "tileset.png", &game->texture_manager, game->renderer);
-
-        // ITEMS
-        create_item("pepsi", "ITEMS", Vector2{0, 0}, Vector2{20, 32}, &game->item_list);
-        create_item("mayo", "ITEMS", Vector2{32, 0}, Vector2{24, 32}, &game->item_list);
-        create_item("hamburger", "ITEMS", Vector2{64, 0}, Vector2{28, 30}, &game->item_list);
-        create_item("fries", "ITEMS", Vector2{96, 0}, Vector2{24, 30}, &game->item_list);
-        create_item("popsicle", "ITEMS", Vector2{128, 0}, Vector2{15, 30}, &game->item_list);
-        create_item("pineapple_pizza", "ITEMS", Vector2{160, 0}, Vector2{32, 30}, &game->item_list);
-        create_item("whiskey", "ITEMS", Vector2{192, 0}, Vector2{24, 28}, &game->item_list);
-        create_item("beer", "ITEMS", Vector2{224, 0}, Vector2{28, 32}, &game->item_list);
-        create_item("muffin", "ITEMS", Vector2{256, 0}, Vector2{26, 24}, &game->item_list);
-        create_item("hotdog", "ITEMS", Vector2{288, 0}, Vector2{32, 18}, &game->item_list);
-        create_item("steak", "ITEMS", Vector2{0, 32}, Vector2{26, 32}, &game->item_list);
-
-        // ENTITIES
-        for (int i = 0; i < game->item_list.count; ++i) {
-            int entity_id = create_entity_from_item(game->item_list.il[i],
-                                                    &game->entity_list,
-                                                    &game->texture_manager);
-            game->entity_list.e[entity_id].position.x =
-                ((game->screen_width / game->item_list.count) * i) + 16;
-            game->entity_list.e[entity_id].position.y =
-                (game->screen_height / 2) + 32;
-        }
-
         // Player
-        game_state->player_position = { 200, 200 };
-        game_state->player_tilemap_x = FLOOR_SIZE / 2;
-        game_state->player_tilemap_y = FLOOR_SIZE / 2;
+        game_state->player_p.tilemap_x = FLOOR_SIZE / 2;
+        game_state->player_p.tilemap_y = FLOOR_SIZE / 2;
+        game_state->player_p.tile_x = 3;
+        game_state->player_p.tile_y = 3;
+        game_state->player_p.tile_relative_x = 5.0f;
+        game_state->player_p.tile_relative_y = 5.0f;
+
 
         game->entity_list.e[0].type = PLAYER;
-        game->entity_list.e[0].size.w = 24;
-        game->entity_list.e[0].size.h = 32;
-        game->entity_list.e[0].position = game_state->player_position;
+        game->entity_list.e[0].size.h = 1.4f;
+        game->entity_list.e[0].size.w = 0.60f*game->entity_list.e[0].size.h;
 
         memory->is_initialized = true;
     }
@@ -291,29 +258,28 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     current = SDL_GetTicks();
 
     if (input->kb.move_left.is_down) {
-        movement.x = -1;
+        movement.x = -1.0f;
         player->flip_mode = SDL_FLIP_HORIZONTAL;
     }
     if (input->kb.move_right.is_down) {
-        movement.x = 1;
+        movement.x = 1.0f;
         player->flip_mode = SDL_FLIP_NONE;
     }
     if (input->kb.move_up.is_down) {
-        movement.y = -1;
+        movement.y = -1.0f;
     }
     if (input->kb.move_down.is_down) {
-        movement.y = 1;
+        movement.y = 1.0f;
     }
 
     // Entity *player = entity_get_player(game);
-    // TODO Move to player entity
-    f32 velocity = 128.0f * game->delta_time;
+    // TODO: this is meters per second.
+    f32 velocity = 8.0f * game->delta_time;
     Vector2 d_player_position = movement * velocity;
 
     player->src_rect.w = 16;
     player->src_rect.h = 16;
     player->src_rect.y = 16;
-    player->position = game_state->player_position;
 
     // TODO: FIX MEEEEEE!!!111
     r32 animation_time = (current - last_update) / 1000.0f;
@@ -372,14 +338,15 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     World world = {};
 
     world.tile_side_meters = 1.4f;
-    world.tile_side_pixels = 40;
+    world.tile_side_pixels = 70;
+    world.meters_to_pixels = (r32)world.tile_side_pixels / (r32)world.tile_side_meters;
 
     world.tile_count_x = FLOOR_SIZE;
     world.tile_count_y = FLOOR_SIZE;
     world.count_x = TILEMAP_SIZE_X;
     world.count_y = TILEMAP_SIZE_Y;
-    world.offset_x = -10;
-    world.offset_y = -5;
+    world.offset_x = TILEMAP_SIZE_X / 2;
+    world.offset_y = game->window_height - 110;
 
     local_var bool gen_done;
     local_var u32 gen_y, gen_x;
@@ -406,9 +373,9 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
         }
 
-        rooms[gen_y][gen_x].colorR = random_range(20, 255);
-        rooms[gen_y][gen_x].colorG = random_range(20, 255);
-        rooms[gen_y][gen_x].colorB = random_range(20, 255);
+        rooms[gen_y][gen_x].colorR = random_range(20, 220);
+        rooms[gen_y][gen_x].colorG = random_range(20, 220);
+        rooms[gen_y][gen_x].colorB = random_range(20, 220);
 
         gen_x++;
 
@@ -435,42 +402,28 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
 
     // render_tilemap(game);
     // TILEMAP
-
-    Vector2 new_player_position = game_state->player_position + d_player_position;
-
     Tilemap *tilemap = get_tilemap(&world,
-                                   game_state->player_tilemap_x,
-                                   game_state->player_tilemap_y);
+                                   game_state->player_p.tilemap_x,
+                                   game_state->player_p.tilemap_y);
     assert(tilemap);
 
-    Raw_Position player_position = {
-        game_state->player_tilemap_x,
-        game_state->player_tilemap_y,
-        new_player_position.x,
-        new_player_position.y
-    };
-    Raw_Position player_left = player_position;
-    player_left.x -= 0.5f*player->size.w;
-    Raw_Position player_right = player_position;
-    player_right.x += 0.5f*player->size.w;
+    World_Position new_player_position = game_state->player_p;
+    new_player_position.tile_relative_x += d_player_position.x;
+    new_player_position.tile_relative_y -= d_player_position.y;
+    new_player_position = recanonicalize_position(&world, new_player_position);
 
-    if (is_world_point_empty(&world, player_position) &&
-        is_world_point_empty(&world, player_left) &&
-        is_world_point_empty(&world, player_right)) {
-        World_Position new_position = get_world_position(&world, player_position);
+    World_Position new_player_left = new_player_position;
+    new_player_left.tile_relative_x -= 0.5f*player->size.w;
+    new_player_left = recanonicalize_position(&world, new_player_left);
 
-        if ((game_state->player_tilemap_x != new_position.tilemap_x) ||
-            (game_state->player_tilemap_y != new_position.tilemap_y)) {
-            printf("NEW ROOM DISCOVERED: (%d, %d)\n", new_position.tilemap_x, new_position.tilemap_y);
-        }
+    World_Position new_player_right = new_player_position;
+    new_player_right.tile_relative_x += 0.5f*player->size.w;
+    new_player_right = recanonicalize_position(&world, new_player_right);
 
-        game_state->player_tilemap_x = new_position.tilemap_x;
-        game_state->player_tilemap_y = new_position.tilemap_y;
-        game_state->player_position.x =
-            world.offset_x + world.tile_side_pixels * new_position.tile_x + new_position.tile_relative_x;
-        game_state->player_position.y =
-            world.offset_y + world.tile_side_pixels * new_position.tile_y + new_position.tile_relative_y;
-
+    if (is_world_point_empty(&world, new_player_position) &&
+        is_world_point_empty(&world, new_player_left) &&
+        is_world_point_empty(&world, new_player_right)) {
+        game_state->player_p = new_player_position;
     }
 
     for (int row = 0; row < world.count_y; ++row) {
@@ -479,7 +432,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             i32 tile_value = get_tile_value(&world, tilemap, column, row);
 
             dst_rect.x = world.offset_x + (column * world.tile_side_pixels);
-            dst_rect.y = world.offset_y + (row * world.tile_side_pixels);
+            dst_rect.y = world.offset_y - (row * world.tile_side_pixels);
             dst_rect.w = world.tile_side_pixels;
             dst_rect.h = world.tile_side_pixels;
 
@@ -490,18 +443,42 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
                                    tilemap->colorB, 255);
 
             if (tile_value == 1) {
-                SDL_SetRenderDrawColor(game->renderer, 25, 25, 25, 255);
+                SDL_SetRenderDrawColor(game->renderer, 50, 50, 50, 255);
+            }
+
+            if (column == game_state->player_p.tile_x &&
+                row == game_state->player_p.tile_y) {
+                SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
             }
 
             SDL_RenderFillRect(game->renderer, &dst_rect);
         }
     }
 
+    SDL_FRect player_rect;
+
+    player_rect.x = world.offset_x +
+        world.tile_side_pixels*game_state->player_p.tile_x +
+        world.meters_to_pixels*game_state->player_p.tile_relative_x -
+        0.5f*(world.meters_to_pixels*player->size.w);
+    // TODO: Adding world.tile_side_pixels because it's missing
+    // from the original math. Check later.
+    player_rect.y = world.tile_side_pixels + world.offset_y -
+        world.tile_side_pixels*game_state->player_p.tile_y -
+        world.meters_to_pixels*game_state->player_p.tile_relative_y -
+        world.meters_to_pixels*player->size.h;
+    player_rect.w = world.meters_to_pixels*player->size.w;
+    player_rect.h = world.meters_to_pixels*player->size.h;
+
+    SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
+    SDL_RenderFillRectF(game->renderer, &player_rect);
+
     for (i32 i = 0; i < game->entity_list.count; ++i) {
+        continue;
         Entity e = game->entity_list.e[i];
 
         if (e.type != NONE && e.type != ITEM) {
-            SDL_Rect dst_rect;
+            SDL_FRect dst_rect;
 
             dst_rect.x = e.position.x;
             dst_rect.y = e.position.y;
@@ -509,8 +486,16 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             dst_rect.h = e.size.h;
 
             if (e.type == PLAYER) {
-                dst_rect.x = game_state->player_position.x - 0.5f*e.size.w;
-                dst_rect.y = game_state->player_position.y - e.size.h;
+                dst_rect.x = world.offset_x +
+                    world.tile_side_pixels*game_state->player_p.tile_x +
+                    world.meters_to_pixels*game_state->player_p.tile_relative_x -
+                    0.5f*(world.meters_to_pixels*e.size.w);
+                dst_rect.y = world.offset_y -
+                    world.tile_side_pixels*game_state->player_p.tile_y -
+                    world.meters_to_pixels*game_state->player_p.tile_relative_y -
+                    world.meters_to_pixels*e.size.h;
+                dst_rect.w = world.meters_to_pixels*e.size.w;
+                dst_rect.h = world.meters_to_pixels*e.size.h;
             }
 
 #if FTW_INTERNAL
@@ -529,7 +514,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             }
 #endif
 
-            SDL_RenderCopyEx(game->renderer,
+            SDL_RenderCopyExF(game->renderer,
                              e.texture,
                              &e.src_rect,
                              &dst_rect,

@@ -27,10 +27,7 @@ enum Game_Scene {
 };
 
 struct Game_State {
-    Vector2 player_position;
-
-    i32 player_tilemap_x;
-    i32 player_tilemap_y;
+    World_Position player_p;
 
     // TEMP
     bool world_generated;

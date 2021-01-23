@@ -19,8 +19,6 @@
 global_var bool game_running = false;
 global_var bool global_pause = false;
 
-static TTF_Font *press_start_font;
-static SDL_Color text_color = {255, 255, 255};
 static SDL_Game_Config game_config = {};
 static SDL_Game_Code game_code = {};
 static Memory memory;
@@ -192,8 +190,6 @@ void on_init(SDL_Window *window, SDL_Renderer *renderer) {
 
     assert(game_code.is_valid);
     game.options = SDL_platform_load_config();
-    game.screen_width = ORIGINAL_GRAPHIC_WIDTH;
-    game.screen_height = ORIGINAL_GRAPHIC_HEIGHT;
     game.window_width = WINDOW_WIDTH;
     game.window_height = WINDOW_HEIGHT;
     game.window = window;
@@ -249,15 +245,14 @@ int main() {
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+#if ENABLE_AUTO_RESIZE_VIEWPORT
     // Recalculate renderer scale
     SDL_RenderSetScale(renderer,
                        (WINDOW_WIDTH  / ORIGINAL_GRAPHIC_WIDTH),
                        (WINDOW_HEIGHT / ORIGINAL_GRAPHIC_HEIGHT));
+#endif
 
     on_init(window, renderer);
-
-    // FONT
-    press_start_font = TTF_OpenFont("assets/PressStart2P-Regular.ttf", 12);
 
     if (window) {
         game_running = true;
@@ -305,6 +300,7 @@ int main() {
                                 game_running = false;
                             } break;
                             case SDL_WINDOWEVENT: {
+#if ENABLE_AUTO_RESIZE_VIEWPORT
                                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                                     r32 new_width = event.window.data1;
                                     r32 new_height = event.window.data2;
@@ -332,6 +328,7 @@ int main() {
                                     game.window_width = new_width;
                                     game.window_height = new_height;
                                 }
+#endif
                             } break;
                             case SDL_KEYDOWN: {
                                 if (event.key.keysym.sym == SDLK_ESCAPE) {
@@ -351,51 +348,6 @@ int main() {
 
                         game_code.game_update_and_render(&game_memory, &input, &game);
 
-#if FTW_INTERNAL
-                        // TODO: Temp solution to draw FPS/Frametime
-                        // This needs to be moved to UI rendering.
-                        SDL_Rect ft_rect, fps_rect;
-
-                        // Show FRAMETIME
-                        char ft_amount[12];
-
-                        sprintf(ft_amount, "FRAMETIME %f ms", (delta_time_value * 1000));
-                        SDL_Surface *ft_surface = TTF_RenderText_Solid(press_start_font,
-                                                                       ft_amount,
-                                                                       text_color);
-                        SDL_Texture *ft_texture = SDL_CreateTextureFromSurface(game.renderer,
-                                                                               ft_surface);
-
-                        ft_rect.x = 0;
-                        ft_rect.y = 0;
-                        ft_rect.w = ft_surface->w;
-                        ft_rect.h = ft_surface->h;
-
-                        // Show FPS
-                        char fps_amount[12];
-
-                        sprintf(fps_amount, "FPS %d", fps_value);
-                        SDL_Surface *fps_surface = TTF_RenderText_Solid(press_start_font,
-                                                                        fps_amount,
-                                                                        text_color);
-                        SDL_Texture *fps_texture = SDL_CreateTextureFromSurface(game.renderer,
-                                                                                fps_surface);
-
-
-                        fps_rect.x = ft_rect.x;
-                        fps_rect.y = ft_rect.y + ft_rect.h + 5;
-                        fps_rect.w = fps_surface->w;
-                        fps_rect.h = fps_surface->h;
-
-                        SDL_RenderCopy(game.renderer, ft_texture, NULL, &ft_rect);
-                        SDL_RenderCopy(game.renderer, fps_texture, NULL, &fps_rect);
-
-                        SDL_FreeSurface(ft_surface);
-                        SDL_FreeSurface(fps_surface);
-                        SDL_DestroyTexture(ft_texture);
-                        SDL_DestroyTexture(fps_texture);
-#endif
-
                         SDL_RenderPresent(game.renderer);
 
                         r32 FREQ = (r32)SDL_GetPerformanceFrequency();
@@ -405,6 +357,13 @@ int main() {
                         game.delta_time = delta_time_value;
                     }
 #if FTW_INTERNAL
+                    char window_title_buffer[50];
+                    sprintf(window_title_buffer,
+                            "%s   FPS: %d   FRAMETIME: %f",
+                            WINDOW_TITLE,
+                            fps_value,
+                            (delta_time_value * 1000.0f));
+                    SDL_SetWindowTitle(window, window_title_buffer);
                     if (SDL_platform_code_changed()) {
                         SDL_platform_unload_game_code();
 

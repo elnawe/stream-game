@@ -28,13 +28,10 @@ struct Tilemap {
     u32 *tiles;
 };
 
-
-// TODO: Use the world struct. I will convert these screen pixels
-//       to something that exists in the real world, like meters.
-//       Single 32-bit value for
 struct World {
     r32 tile_side_meters;
     s32 tile_side_pixels;
+    r32 meters_to_pixels;
 
     u32 tile_count_x;
     u32 tile_count_y;
@@ -42,18 +39,18 @@ struct World {
     u32 count_x;
     u32 count_y;
 
-    s32 offset_x;
-    s32 offset_y;
+    r32 offset_x;
+    r32 offset_y;
 
     Tilemap *tilemaps;
 };
 
 struct World_Position {
-    i32 tilemap_x;
-    i32 tilemap_y;
+    s32 tilemap_x;
+    s32 tilemap_y;
 
-    i32 tile_x;
-    i32 tile_y;
+    s32 tile_x;
+    s32 tile_y;
 
     // NOTE: X and Y relative to the tile
     //       (top-left corner of the tile)
@@ -62,17 +59,6 @@ struct World_Position {
     r32 tile_relative_x;
     r32 tile_relative_y;
 };
-
-struct Raw_Position {
-    i32 tilemap_x;
-    i32 tilemap_y;
-
-    // NOTE: X and Y relative to the tilemap
-    //       (top-left corner of the screen)
-    r32 x;
-    r32 y;
-};
-
 
 // TODO: two-dimension array of world
 // u32 floor_schema[FLOOR_SIZE][FLOOR_SIZE] =

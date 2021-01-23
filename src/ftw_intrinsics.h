@@ -3,8 +3,8 @@
 
 #include <math.h>
 
-inline i32 floor_r32_to_i32(r32 value) {
-    i32 result = (i32)floorf(value);
+inline s32 floor_r32_to_s32(r32 value) {
+    s32 result = (s32)floorf(value);
 
     return result;
 }
