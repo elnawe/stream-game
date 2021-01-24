@@ -300,12 +300,12 @@ int main() {
                                 game_running = false;
                             } break;
                             case SDL_WINDOWEVENT: {
-#if ENABLE_AUTO_RESIZE_VIEWPORT
                                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                                     r32 new_width = event.window.data1;
                                     r32 new_height = event.window.data2;
                                     r32 aspect_ratio_result;
 
+#if ENABLE_AUTO_RESIZE_VIEWPORT
                                     // Keep aspect ratio defined in
                                     // ASPECT_RATIO_WIDTH & ASPECT_RATIO_HEIGHT
                                     if (new_width != game.window_width) {
@@ -316,19 +316,19 @@ int main() {
                                         new_width = aspect_ratio_result * ASPECT_RATIO_WIDTH;
                                     }
 
+                                    SDL_RenderSetScale(game.renderer,
+                                                       (new_width  / ORIGINAL_GRAPHIC_WIDTH),
+                                                       (new_height / ORIGINAL_GRAPHIC_HEIGHT));
+#endif
+
                                     // Resizing window and game scale
                                     SDL_SetWindowSize(game.window,
                                                       new_width,
                                                       new_height);
 
-                                    SDL_RenderSetScale(game.renderer,
-                                                       (new_width  / ORIGINAL_GRAPHIC_WIDTH),
-                                                       (new_height / ORIGINAL_GRAPHIC_HEIGHT));
-
                                     game.window_width = new_width;
                                     game.window_height = new_height;
                                 }
-#endif
                             } break;
                             case SDL_KEYDOWN: {
                                 if (event.key.keysym.sym == SDLK_ESCAPE) {

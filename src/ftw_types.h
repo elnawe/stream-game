@@ -60,6 +60,7 @@ typedef double f64;
 typedef float  r32;
 typedef double r64;
 
+typedef size_t     mem_size;
 typedef intptr_t   iptr;
 typedef uintptr_t  uptr;
 

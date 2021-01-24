@@ -163,7 +163,7 @@ inline World_Position recanonicalize_position(World *world, World_Position posit
     return result;
 }
 
-Tilemap *get_tilemap(World *world, i32 tilemap_x, i32 tilemap_y) {
+inline Tilemap *get_tilemap(World *world, i32 tilemap_x, i32 tilemap_y) {
     Tilemap *tilemap = 0;
 
     if (tilemap_x >= 0 && tilemap_x < world->tile_count_x &&
@@ -176,7 +176,7 @@ Tilemap *get_tilemap(World *world, i32 tilemap_x, i32 tilemap_y) {
     return tilemap;
 }
 
-u32 get_tile_value(World *world, Tilemap *tilemap, i32 tile_x, i32 tile_y) {
+inline u32 get_tile_value(World *world, Tilemap *tilemap, i32 tile_x, i32 tile_y) {
     assert(tilemap);
     assert((tile_x >= 0) && (tile_x < world->count_x) &&
            (tile_y >= 0) && (tile_y < world->count_y));
@@ -186,11 +186,10 @@ u32 get_tile_value(World *world, Tilemap *tilemap, i32 tile_x, i32 tile_y) {
     return tile_value;
 }
 
-
-bool is_tilemap_point_empty(World *world,
-                            Tilemap *tilemap,
-                            i32 test_tile_x,
-                            i32 test_tile_y) {
+inline bool is_tilemap_point_empty(World *world,
+                                   Tilemap *tilemap,
+                                   i32 test_tile_x,
+                                   i32 test_tile_y) {
     bool is_empty = false;
 
     if (tilemap) {
@@ -206,7 +205,7 @@ bool is_tilemap_point_empty(World *world,
 
 }
 
-bool is_world_point_empty(World *world, World_Position world_position) {
+inline bool is_world_point_empty(World *world, World_Position world_position) {
     bool is_empty = false;
 
     Tilemap *tilemap = get_tilemap(world,
@@ -221,13 +220,29 @@ bool is_world_point_empty(World *world, World_Position world_position) {
     return is_empty;
 }
 
+internal void initialize_arena(Memory_Arena *arena, mem_size size, u8 *base) {
+    arena->size = size;
+    arena->base = base;
+    arena->used = 0;
+}
+
+#define push_struct(arena, type) (type *)push_size_(arena, sizeof(type))
+#define push_array(arena, count, type) (type *)push_size(arena, count*sizeof(type))
+void * push_size_(Memory_Arena *arena, mem_size size) {
+    assert(arena->used + size <= arena->size);
+    void *result = arena->base + arena->used;
+    arena->used += size;
+
+    return result;
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     assert(sizeof(Game_State) <= memory->permanent_storage_size);
 
     Game_State *game_state = (Game_State *)memory->permanent_storage;
 
     if (!memory->is_initialized) {
-        // Random Seed
+        // TODO: Randomness
         srand(time(NULL));
 
         // TODO: Legacy code to be removed once we start using
@@ -235,6 +250,121 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         // TODO: remove this with new load_texture/create_entity combo
         game = game;
         create_entity("assets/player.bmp", &game->entity_list, game->renderer);
+
+        // TODO: Take care of these once we move stuff to new entities
+        game->entity_list.e[0].type = PLAYER;
+        game->entity_list.e[0].size.h = 1.2f;
+        game->entity_list.e[0].size.w = 0.60f*game->entity_list.e[0].size.h;
+
+
+        initialize_arena(&game_state->world_arena,
+                         memory->permanent_storage_size - sizeof(Game_State),
+                         (u8 *)memory->permanent_storage + sizeof(Game_State));
+
+        game_state->world = push_struct(&game_state->world_arena, World);
+        World *world = game_state->world;
+
+        world->tile_side_meters = 1.4f;
+        world->tile_side_pixels = 70;
+        world->meters_to_pixels = (r32)world->tile_side_pixels / (r32)world->tile_side_meters;
+
+        world->tile_count_x = FLOOR_SIZE;
+        world->tile_count_y = FLOOR_SIZE;
+        world->count_x = TILEMAP_SIZE_X;
+        world->count_y = TILEMAP_SIZE_Y;
+        world->offset_x = 0;
+        world->offset_y = game->window_height - world->tile_side_pixels;
+
+        game_floor.count_x = FLOOR_SIZE;
+        game_floor.count_y = FLOOR_SIZE;
+        game_floor.max_rooms = 20;
+        game_floor.min_rooms = 8;
+        game_floor.total_rooms = random_range(game_floor.min_rooms,
+                                              game_floor.max_rooms);
+
+        local_var u32 gen_pos_x = FLOOR_SIZE / 2;
+        local_var u32 gen_pos_y = FLOOR_SIZE / 2;
+
+        floor_rooms[gen_pos_y][gen_pos_x] = 1;
+
+        // TODO: World generation logic is awful! Change IT!
+        while (!game_state->world_generated &&
+               game_floor.discovered < game_floor.total_rooms) {
+            u32 new_direction = random(3);
+
+            if (new_direction == FloorGenMove_Up && gen_pos_y > 0) {
+                gen_pos_y -= 1;
+            } else if (new_direction == FloorGenMove_Right && gen_pos_x < FLOOR_SIZE) {
+                gen_pos_x += 1;
+            } else if (new_direction == FloorGenMove_Down && gen_pos_y < FLOOR_SIZE) {
+                gen_pos_y += 1;
+            } else if (new_direction == FloorGenMove_Left && gen_pos_x > 0) {
+                gen_pos_x -= 1;
+            }
+
+            if (floor_rooms[gen_pos_y][gen_pos_x] == 0) {
+                floor_rooms[gen_pos_y][gen_pos_x] = 1;
+                game_floor.discovered++;
+            }
+
+            for (int y = 0; y < 22; ++y) {
+                for (int x = 0; x < 22; ++x) {
+                    game_state->world_map[y][x] = floor_rooms[y][x];
+                }
+            }
+        }
+
+        local_var bool gen_done;
+        local_var u32 gen_y, gen_x;
+
+        while (!game_state->world_generated && !gen_done) {
+            if (game_state->world_map[gen_y][gen_x] == 1) {
+                u32 pick_room = random(3);
+
+                switch(pick_room) {
+                    case 0: {
+                        rooms[gen_y][gen_x].tiles = (u32 *)room_nesw00;
+                    } break;
+                    case 1: {
+                        rooms[gen_y][gen_x].tiles = (u32 *)room_nesw01;
+                    } break;
+                    case 2: {
+                        rooms[gen_y][gen_x].tiles = (u32 *)room_nesw02;
+                    } break;
+                    case 3: {
+                        rooms[gen_y][gen_x].tiles = (u32 *)room_nesw03;
+                    } break;
+                }
+            } else {
+                rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
+            }
+
+            rooms[gen_y][gen_x].colorR = random_range(20, 220);
+            rooms[gen_y][gen_x].colorG = random_range(20, 220);
+            rooms[gen_y][gen_x].colorB = random_range(20, 220);
+
+            gen_x++;
+
+            // TODO: This save to game_state will need to be removed once tiles
+            //       are converted into entities.
+            if (gen_y == FLOOR_SIZE) {
+                gen_done = true;
+                game_state->world_generated = true;
+
+                for (int X = 0; X < 22; ++X) {
+                    for (int Y = 0; Y < 22; ++Y) {
+                        game_state->rooms[Y][X] = rooms[Y][X];
+                    }
+                }
+            }
+
+            if (gen_x == FLOOR_SIZE) {
+                gen_x = 0;
+                gen_y++;
+            }
+        }
+
+        world->tilemaps = (Tilemap *)game_state->rooms;
 
         // Player
         game_state->player_p.tilemap_x = FLOOR_SIZE / 2;
@@ -244,13 +374,11 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         game_state->player_p.tile_relative_x = 5.0f;
         game_state->player_p.tile_relative_y = 5.0f;
 
-
-        game->entity_list.e[0].type = PLAYER;
-        game->entity_list.e[0].size.h = 1.4f;
-        game->entity_list.e[0].size.w = 0.60f*game->entity_list.e[0].size.h;
-
         memory->is_initialized = true;
     }
+
+    World *world = game_state->world;
+    world->tilemaps = (Tilemap *)game_state->rooms;
 
     Vector2 movement = {};
     Entity *player = &game->entity_list.e[0];
@@ -298,111 +426,10 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     /// FLOOR STATS HERE
     /// TODO: Check this out! Floor logic
     ///
-    game_floor.count_x = FLOOR_SIZE;
-    game_floor.count_y = FLOOR_SIZE;
-    game_floor.max_rooms = 20;
-    game_floor.min_rooms = 8;
-    game_floor.total_rooms =
-        game_floor.min_rooms +
-        random(game_floor.max_rooms - game_floor.min_rooms);
-
-    //game_floor.rooms = game_state->world_map;
-
-    local_var u32 gen_pos_x = FLOOR_SIZE / 2;
-    local_var u32 gen_pos_y = FLOOR_SIZE / 2;
-
-    floor_rooms[gen_pos_y][gen_pos_x] = 1;
-
-    while (!game_state->world_generated &&
-           game_floor.discovered < game_floor.total_rooms) {
-        u32 new_direction = random(3);
-
-        if (new_direction == FloorGenMove_Up && gen_pos_y > 0) {
-            gen_pos_y -= 1;
-        } else if (new_direction == FloorGenMove_Right && gen_pos_x < FLOOR_SIZE) {
-            gen_pos_x += 1;
-        } else if (new_direction == FloorGenMove_Down && gen_pos_y < FLOOR_SIZE) {
-            gen_pos_y += 1;
-        } else if (new_direction == FloorGenMove_Left && gen_pos_x > 0) {
-            gen_pos_x -= 1;
-        }
-
-        if (floor_rooms[gen_pos_y][gen_pos_x] == 0) {
-            floor_rooms[gen_pos_y][gen_pos_x] = 1;
-            game_floor.discovered++;
-        }
-
-        game_state->world_map = (u32 *)floor_rooms;
-    }
-
-    World world = {};
-
-    world.tile_side_meters = 1.4f;
-    world.tile_side_pixels = 70;
-    world.meters_to_pixels = (r32)world.tile_side_pixels / (r32)world.tile_side_meters;
-
-    world.tile_count_x = FLOOR_SIZE;
-    world.tile_count_y = FLOOR_SIZE;
-    world.count_x = TILEMAP_SIZE_X;
-    world.count_y = TILEMAP_SIZE_Y;
-    world.offset_x = TILEMAP_SIZE_X / 2;
-    world.offset_y = game->window_height - 110;
-
-    local_var bool gen_done;
-    local_var u32 gen_y, gen_x;
-
-    while (!game_state->world_generated && !gen_done) {
-        if (game_state->world_map[gen_y*FLOOR_SIZE + gen_x] == 1) {
-            u32 pick_room = random(3);
-
-            switch(pick_room) {
-                case 0: {
-                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw00;
-                } break;
-                case 1: {
-                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw01;
-                } break;
-                case 2: {
-                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw02;
-                } break;
-                case 3: {
-                    rooms[gen_y][gen_x].tiles = (u32 *)room_nesw03;
-                } break;
-            }
-        } else {
-            rooms[gen_y][gen_x].tiles = (u32 *)room_no_exit;
-        }
-
-        rooms[gen_y][gen_x].colorR = random_range(20, 220);
-        rooms[gen_y][gen_x].colorG = random_range(20, 220);
-        rooms[gen_y][gen_x].colorB = random_range(20, 220);
-
-        gen_x++;
-
-        // TODO: This save to game_state will need to be removed once tiles
-        //       are converted into entities.
-        if (gen_y == FLOOR_SIZE) {
-            gen_done = true;
-            game_state->world_generated = true;
-
-            for (int X = 0; X < 22; ++X) {
-                for (int Y = 0; Y < 22; ++Y) {
-                    game_state->rooms[Y][X] = rooms[Y][X];
-                }
-            }
-        }
-
-        if (gen_x == FLOOR_SIZE) {
-            gen_x = 0;
-            gen_y++;
-        }
-    }
-
-    world.tilemaps = (Tilemap *)game_state->rooms;
 
     // render_tilemap(game);
     // TILEMAP
-    Tilemap *tilemap = get_tilemap(&world,
+    Tilemap *tilemap = get_tilemap(world,
                                    game_state->player_p.tilemap_x,
                                    game_state->player_p.tilemap_y);
     assert(tilemap);
@@ -410,31 +437,31 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     World_Position new_player_position = game_state->player_p;
     new_player_position.tile_relative_x += d_player_position.x;
     new_player_position.tile_relative_y -= d_player_position.y;
-    new_player_position = recanonicalize_position(&world, new_player_position);
+    new_player_position = recanonicalize_position(world, new_player_position);
 
     World_Position new_player_left = new_player_position;
     new_player_left.tile_relative_x -= 0.5f*player->size.w;
-    new_player_left = recanonicalize_position(&world, new_player_left);
+    new_player_left = recanonicalize_position(world, new_player_left);
 
     World_Position new_player_right = new_player_position;
     new_player_right.tile_relative_x += 0.5f*player->size.w;
-    new_player_right = recanonicalize_position(&world, new_player_right);
+    new_player_right = recanonicalize_position(world, new_player_right);
 
-    if (is_world_point_empty(&world, new_player_position) &&
-        is_world_point_empty(&world, new_player_left) &&
-        is_world_point_empty(&world, new_player_right)) {
+    if (is_world_point_empty(world, new_player_position) &&
+        is_world_point_empty(world, new_player_left) &&
+        is_world_point_empty(world, new_player_right)) {
         game_state->player_p = new_player_position;
     }
 
-    for (int row = 0; row < world.count_y; ++row) {
-        for (int column = 0; column < world.count_x; ++column) {
+    for (int row = 0; row < world->count_y; ++row) {
+        for (int column = 0; column < world->count_x; ++column) {
             SDL_Rect dst_rect;
-            i32 tile_value = get_tile_value(&world, tilemap, column, row);
+            i32 tile_value = get_tile_value(world, tilemap, column, row);
 
-            dst_rect.x = world.offset_x + (column * world.tile_side_pixels);
-            dst_rect.y = world.offset_y - (row * world.tile_side_pixels);
-            dst_rect.w = world.tile_side_pixels;
-            dst_rect.h = world.tile_side_pixels;
+            dst_rect.x = world->offset_x + (column * world->tile_side_pixels);
+            dst_rect.y = world->offset_y - (row * world->tile_side_pixels);
+            dst_rect.w = world->tile_side_pixels;
+            dst_rect.h = world->tile_side_pixels;
 
             // TODO: This is only demo testing
             SDL_SetRenderDrawColor(game->renderer,
@@ -457,18 +484,18 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
 
     SDL_FRect player_rect;
 
-    player_rect.x = world.offset_x +
-        world.tile_side_pixels*game_state->player_p.tile_x +
-        world.meters_to_pixels*game_state->player_p.tile_relative_x -
-        0.5f*(world.meters_to_pixels*player->size.w);
-    // TODO: Adding world.tile_side_pixels because it's missing
+    player_rect.x = world->offset_x +
+        world->tile_side_pixels*game_state->player_p.tile_x +
+        world->meters_to_pixels*game_state->player_p.tile_relative_x -
+        0.5f*(world->meters_to_pixels*player->size.w);
+    // TODO: Adding world->tile_side_pixels because it's missing
     // from the original math. Check later.
-    player_rect.y = world.tile_side_pixels + world.offset_y -
-        world.tile_side_pixels*game_state->player_p.tile_y -
-        world.meters_to_pixels*game_state->player_p.tile_relative_y -
-        world.meters_to_pixels*player->size.h;
-    player_rect.w = world.meters_to_pixels*player->size.w;
-    player_rect.h = world.meters_to_pixels*player->size.h;
+    player_rect.y = world->tile_side_pixels + world->offset_y -
+        world->tile_side_pixels*game_state->player_p.tile_y -
+        world->meters_to_pixels*game_state->player_p.tile_relative_y -
+        world->meters_to_pixels*player->size.h;
+    player_rect.w = world->meters_to_pixels*player->size.w;
+    player_rect.h = world->meters_to_pixels*player->size.h;
 
     SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
     SDL_RenderFillRectF(game->renderer, &player_rect);
@@ -486,16 +513,16 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             dst_rect.h = e.size.h;
 
             if (e.type == PLAYER) {
-                dst_rect.x = world.offset_x +
-                    world.tile_side_pixels*game_state->player_p.tile_x +
-                    world.meters_to_pixels*game_state->player_p.tile_relative_x -
-                    0.5f*(world.meters_to_pixels*e.size.w);
-                dst_rect.y = world.offset_y -
-                    world.tile_side_pixels*game_state->player_p.tile_y -
-                    world.meters_to_pixels*game_state->player_p.tile_relative_y -
-                    world.meters_to_pixels*e.size.h;
-                dst_rect.w = world.meters_to_pixels*e.size.w;
-                dst_rect.h = world.meters_to_pixels*e.size.h;
+                dst_rect.x = world->offset_x +
+                    world->tile_side_pixels*game_state->player_p.tile_x +
+                    world->meters_to_pixels*game_state->player_p.tile_relative_x -
+                    0.5f*(world->meters_to_pixels*e.size.w);
+                dst_rect.y = world->tile_side_pixels + world->offset_y -
+                    world->tile_side_pixels*game_state->player_p.tile_y -
+                    world->meters_to_pixels*game_state->player_p.tile_relative_y -
+                    world->meters_to_pixels*e.size.h;
+                dst_rect.w = world->meters_to_pixels*e.size.w;
+                dst_rect.h = world->meters_to_pixels*e.size.h;
             }
 
 #if FTW_INTERNAL
@@ -515,10 +542,10 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
 #endif
 
             SDL_RenderCopyExF(game->renderer,
-                             e.texture,
-                             &e.src_rect,
-                             &dst_rect,
-                             0, NULL, e.flip_mode);
+                              e.texture,
+                              &e.src_rect,
+                              &dst_rect,
+                              0, NULL, e.flip_mode);
         }
     }
 }

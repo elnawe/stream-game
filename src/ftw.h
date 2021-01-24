@@ -26,12 +26,21 @@ enum Game_Scene {
     PAUSE
 };
 
+struct Memory_Arena {
+    mem_size size;
+    u8 *base;
+    mem_size used;
+};
+
 struct Game_State {
+    Memory_Arena world_arena;
+    World *world;
+
     World_Position player_p;
 
     // TEMP
     bool world_generated;
-    u32 *world_map;
+    u32 world_map[22][22];
     Tilemap rooms[22][22];
 };
 

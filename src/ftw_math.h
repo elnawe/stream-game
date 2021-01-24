@@ -9,14 +9,14 @@
 #include <math.h>
 #include <time.h>
 
-inline u8 random(u8 max_value) {
-    u8 result = rand()%(max_value + 1);
+inline u32 random(u32 max_value) {
+    u32 result = rand()%(max_value + 1);
 
     return result;
 }
 
-inline u8 random_range(u8 min_value, u8 max_value) {
-    u8 result = min_value + rand()%((max_value + 1) - min_value);
+inline u32 random_range(u32 min_value, u32 max_value) {
+    u32 result = min_value + rand()%((max_value + 1) - min_value);
 
     return result;
 }

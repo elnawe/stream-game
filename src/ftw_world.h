@@ -60,8 +60,4 @@ struct World_Position {
     r32 tile_relative_y;
 };
 
-// TODO: two-dimension array of world
-// u32 floor_schema[FLOOR_SIZE][FLOOR_SIZE] =
-
-
 #endif
