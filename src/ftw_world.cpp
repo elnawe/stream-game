@@ -64,9 +64,8 @@ global_var u32 room_nesw04[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
 };
 
 
-inline void normalize_coords(u32 tile_count,
-                             s32 *tilemap_pos,
-                             s32 *tile_pos) {
+internal void
+normalize_coords(u32 tile_count, s32 *tilemap_pos, s32 *tile_pos) {
     while (*tile_pos < 0) {
         *tile_pos = tile_count + *tile_pos;
         --*tilemap_pos;
@@ -78,7 +77,8 @@ inline void normalize_coords(u32 tile_count,
     }
 }
 
-inline void recanonicalize_coords(Tilemap *tilemap,
+internal void
+recanonicalize_coords(Tilemap *tilemap,
                                   i32 tile_count,
                                   s32 *tilemap_pos,
                                   s32 *tile_pos,
@@ -103,7 +103,8 @@ inline void recanonicalize_coords(Tilemap *tilemap,
     }
 };
 
-inline World_Position recanonicalize_position(Tilemap *tilemap, World_Position position) {
+inline World_Position
+recanonicalize_position(Tilemap *tilemap, World_Position position) {
     World_Position result = position;
 
     recanonicalize_coords(tilemap,
@@ -120,7 +121,8 @@ inline World_Position recanonicalize_position(Tilemap *tilemap, World_Position p
     return result;
 }
 
-inline Room *get_room_unchecked(Tilemap *tilemap, i32 tilemap_x, i32 tilemap_y) {
+inline Room *
+get_room(Tilemap *tilemap, i32 tilemap_x, i32 tilemap_y) {
     Room *room = 0;
 
     if (tilemap_x >= 0 && tilemap_x < tilemap->tilemap_count &&
@@ -133,10 +135,22 @@ inline Room *get_room_unchecked(Tilemap *tilemap, i32 tilemap_x, i32 tilemap_y) 
     return room;
 }
 
-inline u32 get_tile_value_unchecked(Tilemap *tilemap,
-                                    Room *room,
-                                    i32 tile_x,
-                                    i32 tile_y) {
+
+internal Room *
+get_room(Tilemap *tilemap, s32 tilemap_x, s32 tilemap_y, s32 tile_x, s32 tile_y) {
+    Room *room = 0;
+
+    normalize_coords(tilemap->count_x, &tilemap_x, &tile_x);
+    normalize_coords(tilemap->count_y, &tilemap_y, &tile_y);
+
+    room = get_room(tilemap, tilemap_x, tilemap_y);
+    assert(room);
+
+    return room;
+}
+
+internal u32
+get_tile_value(Tilemap *tilemap, Room *room, i32 tile_x, i32 tile_y) {
     assert(room);
     assert((tile_x >= 0) && (tile_x < tilemap->count_x) &&
            (tile_y >= 0) && (tile_y < tilemap->count_y));
@@ -146,55 +160,35 @@ inline u32 get_tile_value_unchecked(Tilemap *tilemap,
     return tile_value;
 }
 
-inline Room *get_room(Tilemap *tilemap,
-                      s32 tilemap_x,
-                      s32 tilemap_y,
-                      s32 tile_x,
-                      s32 tile_y) {
-    Room *room = 0;
-
-    normalize_coords(tilemap->count_x, &tilemap_x, &tile_x);
-    normalize_coords(tilemap->count_y, &tilemap_y, &tile_y);
-
-    room = get_room_unchecked(tilemap, tilemap_x, tilemap_y);
-    assert(room);
-
-    return room;
-}
-
-inline u32 get_tile_value(Tilemap *tilemap,
-                          s32 tilemap_x,
-                          s32 tilemap_y,
-                          s32 tile_x,
-                          s32 tile_y) {
+inline u32
+get_tile_value(Tilemap *tilemap, s32 tilemap_x, s32 tilemap_y, s32 tile_x, s32 tile_y) {
+    // NOTE: tile_value = 9 is considered an skippable tile. That means it will
+    //       not be processed by the renderer thus saving miliseconds and frames.
     u32 tile_value = 9;
 
     normalize_coords(tilemap->count_x, &tilemap_x, &tile_x);
     normalize_coords(tilemap->count_y, &tilemap_y, &tile_y);
 
-    Room *room = get_room_unchecked(tilemap, tilemap_x, tilemap_y);
+    Room *room = get_room(tilemap, tilemap_x, tilemap_y);
     assert(room);
 
     if (room && room->tiles) {
-        tile_value = get_tile_value_unchecked(tilemap, room, (u32)tile_x, (u32)tile_y);
+        tile_value = get_tile_value(tilemap, room, (u32)tile_x, (u32)tile_y);
     }
 
     return tile_value;
 }
 
-inline bool is_room_point_empty(Tilemap *tilemap,
-                                Room *room,
-                                i32 test_tile_x,
-                                i32 test_tile_y) {
+internal bool
+is_room_point_empty(Tilemap *tilemap, Room *room, i32 test_tile_x, i32 test_tile_y) {
     bool is_empty = false;
 
     if (tilemap) {
-        if (test_tile_x >= 0 && test_tile_x < tilemap->count_x * tilemap->tile_side_in_pixels &&
-            test_tile_y >= 0 && test_tile_y < tilemap->count_y * tilemap->tile_side_in_pixels) {
-            u32 tile_value = get_tile_value_unchecked(tilemap,
-                                                      room,
-                                                      test_tile_x,
-                                                      test_tile_y);
+        if (test_tile_x >= 0 &&
+            test_tile_x < tilemap->count_x*tilemap->tile_side_in_pixels &&
+            test_tile_y >= 0 &&
+            test_tile_y < tilemap->count_y*tilemap->tile_side_in_pixels) {
+            u32 tile_value = get_tile_value(tilemap, room, test_tile_x, test_tile_y);
 
             is_empty  = (tile_value == 0);
         }
@@ -204,12 +198,11 @@ inline bool is_room_point_empty(Tilemap *tilemap,
 
 }
 
-inline bool is_world_point_empty(Tilemap *tilemap, World_Position world_position) {
+inline bool
+is_world_point_empty(Tilemap *tilemap, World_Position world_position) {
     bool is_empty = false;
 
-    Room *room = get_room_unchecked(tilemap,
-                                    world_position.tilemap_x,
-                                    world_position.tilemap_y);
+    Room *room = get_room(tilemap, world_position.tilemap_x, world_position.tilemap_y);
     is_empty = is_room_point_empty(tilemap,
                                    room,
                                    world_position.tile_x,

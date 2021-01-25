@@ -1,7 +1,11 @@
+* STREAM 1/25
+** TODO Zoom-in/zoom-out camera for debugging
+** TODO Controller Input + unified input logic
+** TODO Functional function for normalize_coords & recanonicalize_coords?
+** DONE Make get_room and get_tile_value polymorphic
+
 * TODO [CODE] Chech the quick maths. Lerp player movement
   Player movement is faster on diagonals
-* TODO [CODE] Start using precision floating point SDL_FRect
-* TODO [CODE] Clean up types
 * TODO Player gets stuck in the wall when trying to go up.
   Sprite seems to go through but the sprite is smaller than the collision check.
 * ARCHIVE

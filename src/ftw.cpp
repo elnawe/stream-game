@@ -82,7 +82,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         u32 GEN_X = tilemap->tilemap_count / 2;
         u32 GEN_Y = tilemap->tilemap_count / 2;
         u32 FOUND = 0;
-        Room *room = get_room_unchecked(tilemap, GEN_X, GEN_Y);
+        Room *room = get_room(tilemap, GEN_X, GEN_Y);
         assert(room);
 
         { // Start Position
@@ -116,7 +116,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
                    GEN_Y >= 0 &&
                    GEN_Y <= tilemap->tilemap_count);
 
-            Room *room = get_room_unchecked(tilemap, GEN_X, GEN_Y);
+            Room *room = get_room(tilemap, GEN_X, GEN_Y);
             assert(room);
 
             if (room->id == 0) {
