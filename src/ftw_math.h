@@ -6,20 +6,6 @@
 // TODO: Remove these dependencies once we write our own implementation
 #include "SDL.h"
 #include <stdlib.h>
-#include <math.h>
-#include <time.h>
-
-inline u32 random(u32 max_value) {
-    u32 result = rand()%(max_value + 1);
-
-    return result;
-}
-
-inline u32 random_range(u32 min_value, u32 max_value) {
-    u32 result = min_value + rand()%((max_value + 1) - min_value);
-
-    return result;
-}
 
 Vector2 operator+(Vector2 a, Vector2 b) {
     Vector2 result;

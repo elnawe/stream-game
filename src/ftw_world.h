@@ -1,48 +1,36 @@
 #ifndef FTW_WORLD_H
 #define FTW_WORLD_H
 
-enum FloorGenMove {
-    FloorGenMove_Up,
-    FloorGenMove_Right,
-    FloorGenMove_Down,
-    FloorGenMove_Left,
+enum WorldGen {
+    WorldGen_North,
+    WorldGen_East,
+    WorldGen_South,
+    WorldGen_West
 };
 
-struct Floor {
-    u32 count_x;
-    u32 count_y;
-    u32 discovered;
-
-    u32 max_rooms;
-    u32 min_rooms;
-    u32 total_rooms;
-
-    u32 *rooms;
-};
-
-struct Tilemap {
+struct Room {
+    u32 id;
+    u32 *tiles;
+    //
     u32 colorR;
     u32 colorG;
     u32 colorB;
-
-    u32 *tiles;
 };
 
-struct World {
-    r32 tile_side_meters;
-    s32 tile_side_pixels;
-    r32 meters_to_pixels;
+struct Tilemap {
+    r32 tile_side_in_meters;
+    r32 tile_side_in_pixels;
 
-    u32 tile_count_x;
-    u32 tile_count_y;
+    u32 tilemap_count;
+
+    Room *rooms;
 
     u32 count_x;
     u32 count_y;
+};
 
-    r32 offset_x;
-    r32 offset_y;
-
-    Tilemap *tilemaps;
+struct World {
+    Tilemap *tilemap;
 };
 
 struct World_Position {

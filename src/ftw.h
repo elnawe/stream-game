@@ -37,11 +37,6 @@ struct Game_State {
     World *world;
 
     World_Position player_p;
-
-    // TEMP
-    bool world_generated;
-    u32 world_map[22][22];
-    Tilemap rooms[22][22];
 };
 
 struct Game_Options {
