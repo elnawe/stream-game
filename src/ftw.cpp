@@ -177,26 +177,28 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
          ++controller_index) {
         Game_Input_Controller *controller = &input->controllers[controller_index];
 
+        // TODO: Should I support both types of Input?
+
         if (!controller->is_enabled) {
             // NOTE: Skip input processing if controller is disabled.
             continue;
         }
 
         if (controller->is_analog) {
-            movement.x += controller->left_axis.x;
-            movement.y += controller->left_axis.y;
+            movement.x = controller->left_axis.x;
+            movement.y = controller->left_axis.y;
         } else {
             if (controller->move_up.is_down) {
-                movement.y -= 1.0f;
+                movement.y = -1.0f;
             }
             if (controller->move_down.is_down) {
-                movement.y += 1.0f;
+                movement.y = 1.0f;
             }
             if (controller->move_left.is_down) {
-                movement.x -= 1.0f;
+                movement.x = -1.0f;
             }
             if (controller->move_right.is_down) {
-                movement.x += 1.0f;
+                movement.x = 1.0f;
             }
         }
     }

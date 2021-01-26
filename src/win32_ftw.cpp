@@ -3,6 +3,7 @@
 
 #include "ftw.h"
 #include "ftw_config.h"
+#include "ftw_intrinsics.h"
 
 #include <stdio.h>
 #include <windows.h>
@@ -196,6 +197,31 @@ void on_init(SDL_Window *window, SDL_Renderer *renderer) {
     game.renderer = renderer;
 }
 
+internal SDL_GameController *
+register_controller() {
+    SDL_GameController *result;
+
+    for (int controller_index = 0;
+         controller_index < SDL_NumJoysticks();
+         ++controller_index) {
+        if (SDL_IsGameController(controller_index)) {
+            result = SDL_GameControllerOpen(controller_index);
+
+            if (result) {
+                printf("Game Controller plugged in slot %d\n",
+                       controller_index);
+                break;
+            } else {
+                printf("Error registering controller: %d.\n%s\n",
+                       controller_index,
+                       SDL_GetError());
+            }
+        }
+    }
+
+    return result;
+}
+
 internal void
 controller_axis(SDL_GameController *controller,
                 Vector2 *axis,
@@ -301,6 +327,8 @@ int main() {
     if (window) {
         game_running = true;
 
+        SDL_GameController *game_controller = register_controller();
+
         Game_Input input[2];
         Game_Input *old_input = &input[0];
         Game_Input *new_input = &input[1];
@@ -330,10 +358,12 @@ int main() {
                 if (game_code.is_valid) {
                     START = SDL_GetPerformanceCounter();
 
+                    // Keyboard Input
                     {
                         Game_Input_Controller *keyboard = &new_input->controllers[0];
 
                         keyboard->is_analog = false;
+                        // TODO: Can the player disable the keyboard input?
                         keyboard->is_enabled = true;
 
                         keyboard_button(&keyboard->move_up, SDL_SCANCODE_W);
@@ -350,59 +380,47 @@ int main() {
                         keyboard_button(&keyboard->action_right, SDL_SCANCODE_L);
                     }
 
-                    for (int controller_index = 0;
-                         controller_index < SDL_NumJoysticks();
-                         ++controller_index) {
-                        u32 input_index = controller_index+1;
-                        if (SDL_IsGameController(controller_index)) {
-                            SDL_GameController *ctrl =
-                                SDL_GameControllerOpen(controller_index);
+                    // Controller Input
+                    {
+                        SDL_GameController *ctrl = game_controller;
+                        Game_Input_Controller *controller = &new_input->controllers[1];
 
-                            if (ctrl) {
-                                Game_Input_Controller *input_controller =
-                                    &new_input->controllers[input_index];
+                        if (SDL_GameControllerGetAttached(ctrl)) {
+                            controller->is_analog = true;
+                            controller->is_enabled = true;
 
-                                input_controller->is_analog = true;
-                                input_controller->is_enabled = true;
+                            controller_axis(ctrl, &controller->left_axis,
+                                            SDL_CONTROLLER_AXIS_LEFTX,
+                                            SDL_CONTROLLER_AXIS_LEFTY);
 
-                                controller_axis(ctrl, &input_controller->left_axis,
-                                                SDL_CONTROLLER_AXIS_LEFTX,
-                                                SDL_CONTROLLER_AXIS_LEFTY);
+                            controller_axis(ctrl, &controller->right_axis,
+                                            SDL_CONTROLLER_AXIS_RIGHTX,
+                                            SDL_CONTROLLER_AXIS_RIGHTY);
 
-                                controller_axis(ctrl, &input_controller->right_axis,
-                                                SDL_CONTROLLER_AXIS_RIGHTX,
-                                                SDL_CONTROLLER_AXIS_RIGHTY);
+                            controller_button(ctrl, &controller->move_up,
+                                              SDL_CONTROLLER_BUTTON_DPAD_UP);
+                            controller_button(ctrl, &controller->move_down,
+                                              SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+                            controller_button(ctrl, &controller->move_left,
+                                              SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+                            controller_button(ctrl, &controller->move_right,
+                                              SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
 
-                                controller_button(ctrl, &input_controller->move_up,
-                                                  SDL_CONTROLLER_BUTTON_DPAD_UP);
-                                controller_button(ctrl, &input_controller->move_down,
-                                                  SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-                                controller_button(ctrl, &input_controller->move_left,
-                                                  SDL_CONTROLLER_BUTTON_DPAD_LEFT);
-                                controller_button(ctrl, &input_controller->move_right,
-                                                  SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+                            controller_button(ctrl, &controller->left_shoulder,
+                                              SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+                            controller_button(ctrl, &controller->right_shoulder,
+                                              SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
 
-                                controller_button(ctrl, &input_controller->left_shoulder,
-                                                  SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
-                                controller_button(ctrl, &input_controller->right_shoulder,
-                                                  SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
-
-                                controller_button(ctrl, &input_controller->action_up,
-                                                  SDL_CONTROLLER_BUTTON_Y);
-                                controller_button(ctrl, &input_controller->action_down,
-                                                  SDL_CONTROLLER_BUTTON_A);
-                                controller_button(ctrl, &input_controller->action_left,
-                                                  SDL_CONTROLLER_BUTTON_X);
-                                controller_button(ctrl, &input_controller->action_right,
-                                                  SDL_CONTROLLER_BUTTON_X);
-
-                            } else {
-                                printf("Error registering controller: %d.\n%s\n",
-                                       controller_index,
-                                       SDL_GetError());
-                            }
+                            controller_button(ctrl, &controller->action_up,
+                                              SDL_CONTROLLER_BUTTON_Y);
+                            controller_button(ctrl, &controller->action_down,
+                                              SDL_CONTROLLER_BUTTON_A);
+                            controller_button(ctrl, &controller->action_left,
+                                              SDL_CONTROLLER_BUTTON_X);
+                            controller_button(ctrl, &controller->action_right,
+                                              SDL_CONTROLLER_BUTTON_X);
                         } else {
-                            input->controllers[input_index].is_enabled = false;
+                            controller->is_enabled = false;
                         }
                     }
 
@@ -410,6 +428,12 @@ int main() {
                         switch(event.type) {
                             case SDL_QUIT: {
                                 game_running = false;
+                            } break;
+                            case SDL_CONTROLLERDEVICEADDED: {
+                                game_controller = register_controller();
+                            } break;
+                            case SDL_CONTROLLERDEVICEREMOVED: {
+                                game_controller = NULL;
                             } break;
                             case SDL_WINDOWEVENT: {
                                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {

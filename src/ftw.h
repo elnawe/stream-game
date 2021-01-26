@@ -106,7 +106,7 @@ struct Game_Input_Controller {
 };
 
 struct Game_Input {
-    Game_Input_Controller controllers[4];
+    Game_Input_Controller controllers[2];
 };
 
 // TODO: Should remove [..], Game_Data *game from here once we start
