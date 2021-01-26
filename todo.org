@@ -1,5 +1,6 @@
 * STREAM WEEK 1/25-1/28
 ** DONE Controller Input + unified input logic
+** TODO BUG Close plugged out controllers
 ** TODO Zoom-in/zoom-out camera for debugging
 ** TODO Make the player able to Run!
 ** TODO Functional-ize function for normalize_coords & recanonicalize_coords?
