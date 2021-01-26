@@ -135,8 +135,7 @@ get_room(Tilemap *tilemap, i32 tilemap_x, i32 tilemap_y) {
     return room;
 }
 
-
-internal Room *
+inline Room *
 get_room(Tilemap *tilemap, s32 tilemap_x, s32 tilemap_y, s32 tile_x, s32 tile_y) {
     Room *room = 0;
 
@@ -148,6 +147,8 @@ get_room(Tilemap *tilemap, s32 tilemap_x, s32 tilemap_y, s32 tile_x, s32 tile_y)
 
     return room;
 }
+
+
 
 internal u32
 get_tile_value(Tilemap *tilemap, Room *room, i32 tile_x, i32 tile_y) {

@@ -25,13 +25,15 @@
 
 // WINDOW WIDTH and HEIGHT are used to set the original state of the window
 // (first as it opens).
-/* #define WINDOW_WIDTH  1408 */
-/* #define WINDOW_HEIGHT  704 */
 #define WINDOW_WIDTH  1280
 #define WINDOW_HEIGHT  720
 
 // ASPECT_RATIO WIDTH and HEIGHT define the desired aspect ratio for the game.
 #define ASPECT_RATIO_WIDTH  16
 #define ASPECT_RATIO_HEIGHT  9
+
+// Dead zone of a left and right thumbstick controller
+// https://bit.ly/3pkJhI2
+#define XINPUT_DEAD_ZONE 8000
 
 #endif

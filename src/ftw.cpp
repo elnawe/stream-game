@@ -172,19 +172,26 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
 
     Vector2 movement = {};
 
-    current = SDL_GetTicks();
+    Game_Input_Controller *keyboard = &input->controllers[0];
+    Game_Input_Controller *joystick = &input->controllers[1];
 
-    if (input->kb.move_left.is_down) {
+
+    if (keyboard->move_left.is_down) {
         movement.x = -1.0f;
     }
-    if (input->kb.move_right.is_down) {
+    if (keyboard->move_right.is_down) {
         movement.x = 1.0f;
     }
-    if (input->kb.move_up.is_down) {
+    if (keyboard->move_up.is_down) {
         movement.y = -1.0f;
     }
-    if (input->kb.move_down.is_down) {
+    if (keyboard->move_down.is_down) {
         movement.y = 1.0f;
+    }
+
+    if (joystick->is_analog) {
+        movement.x += joystick->left_axis.x;
+        movement.y += joystick->left_axis.y;
     }
 
     // NOTE: this is meters per second.

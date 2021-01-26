@@ -1,9 +1,10 @@
 * STREAM 1/25
+** DONE Controller Input + unified input logic
 ** TODO Zoom-in/zoom-out camera for debugging
-** TODO Controller Input + unified input logic
-** TODO Functional function for normalize_coords & recanonicalize_coords?
+** TODO Make the player able to Run!
+** TODO Functional-ize function for normalize_coords & recanonicalize_coords?
 ** DONE Make get_room and get_tile_value polymorphic
-
+** TODO BUG Fix movement coordinates. Up should be positive
 * TODO [CODE] Chech the quick maths. Lerp player movement
   Player movement is faster on diagonals
 * TODO Player gets stuck in the wall when trying to go up.

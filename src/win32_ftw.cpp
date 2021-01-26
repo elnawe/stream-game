@@ -21,7 +21,6 @@ global_var bool global_pause = false;
 
 static SDL_Game_Config game_config = {};
 static SDL_Game_Code game_code = {};
-static Memory memory;
 Game_Data game;
 
 void SDL_platform_unload_game_code() {
@@ -185,6 +184,7 @@ Game_Options SDL_platform_load_config() {
     return result;
 }
 
+// TODO: Remove this. The Game_Memory should handle initialization
 void on_init(SDL_Window *window, SDL_Renderer *renderer) {
     game_code = SDL_platform_load_game_code();
 
@@ -196,8 +196,53 @@ void on_init(SDL_Window *window, SDL_Renderer *renderer) {
     game.renderer = renderer;
 }
 
-void on_refresh() {
-    assert(game_code.is_valid);
+internal void
+controller_axis(SDL_GameController *controller,
+                Vector2 *axis,
+                SDL_GameControllerAxis axis_x,
+                SDL_GameControllerAxis axis_y) {
+    i16 MAX_MAGNITUDE = 32767;
+
+    f32 X = (f32)SDL_GameControllerGetAxis(controller, axis_x);
+    f32 Y = (f32)SDL_GameControllerGetAxis(controller, axis_y);
+    f32 magnitude = sqrt(X*X + Y*Y);
+
+    f32 normalized_X = X / magnitude;
+    f32 normalized_Y = Y / magnitude;
+
+    f32 normalized_magnitude = 0.0f;
+
+    if (magnitude > XINPUT_DEAD_ZONE) {
+        if (magnitude > MAX_MAGNITUDE) {
+            magnitude = MAX_MAGNITUDE;
+        }
+
+        magnitude -= XINPUT_DEAD_ZONE;
+
+        normalized_magnitude = magnitude / (MAX_MAGNITUDE - XINPUT_DEAD_ZONE);
+    } else {
+        magnitude = 0.0f;
+        normalized_magnitude = 0.0f;
+    }
+
+    axis->x = (X*normalized_magnitude) / MAX_MAGNITUDE;
+    axis->y = (Y*normalized_magnitude) / MAX_MAGNITUDE;
+}
+
+
+internal void
+controller_button(SDL_GameController *controller,
+                  Game_Button_State *input_state,
+                  SDL_GameControllerButton button) {
+    input_state->is_down = (SDL_GameControllerGetButton(controller, button) == 1);
+}
+
+internal void
+keyboard_button(Game_Button_State *state,
+                SDL_Scancode key) {
+    bool is_down = (SDL_GetKeyboardState(NULL)[key] == 1);
+
+    state->is_down = is_down;
 }
 
 int main() {
@@ -207,9 +252,8 @@ int main() {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Event event;
-    u8 *keyboard_state;
 
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER) != 0) {
         fprintf(stderr, "[SDL] SDL_Init Error: %s\n", SDL_GetError());
         return 1;
     }
@@ -257,7 +301,9 @@ int main() {
     if (window) {
         game_running = true;
 
-        Game_Input input = {};
+        Game_Input input[2];
+        Game_Input *old_input = &input[0];
+        Game_Input *new_input = &input[1];
 
 #if FTW_INTERNAL
         LPVOID base_address = (LPVOID)Terabytes(2);
@@ -283,15 +329,71 @@ int main() {
             while (game_running) {
                 if (game_code.is_valid) {
                     START = SDL_GetPerformanceCounter();
-                    keyboard_state = (u8 *)SDL_GetKeyboardState(NULL);
 
-                    if (keyboard_state) {
-                        input.kb.move_up.is_down = (keyboard_state[SDL_SCANCODE_W] == 1);
-                        input.kb.move_down.is_down = (keyboard_state[SDL_SCANCODE_S] == 1);
-                        input.kb.move_left.is_down = (keyboard_state[SDL_SCANCODE_A] == 1);
-                        input.kb.move_right.is_down = (keyboard_state[SDL_SCANCODE_D] == 1);
-                        input.kb.action.is_down = (keyboard_state[SDL_SCANCODE_N] == 1);
-                        input.kb.reset.is_down = (keyboard_state[SDL_SCANCODE_R] == 1);
+                    Game_Input_Controller *keyboard = &new_input->controllers[0];
+
+                    for (int controller_index = 0;
+                         controller_index < SDL_NumJoysticks();
+                         ++controller_index) {
+                        if (SDL_IsGameController(controller_index)) {
+                            SDL_GameController *ctrl =
+                                SDL_GameControllerOpen(controller_index);
+
+                            if (ctrl) {
+                                u32 input_index = controller_index+1;
+                                Game_Input_Controller *input_controller =
+                                    &new_input->controllers[input_index];
+
+                                input_controller->is_analog = true;
+
+                                controller_axis(ctrl, &input_controller->left_axis,
+                                                SDL_CONTROLLER_AXIS_LEFTX,
+                                                SDL_CONTROLLER_AXIS_LEFTY);
+
+                                controller_axis(ctrl, &input_controller->right_axis,
+                                                SDL_CONTROLLER_AXIS_RIGHTX,
+                                                SDL_CONTROLLER_AXIS_RIGHTY);
+
+                                controller_button(ctrl, &input_controller->move_up,
+                                                  SDL_CONTROLLER_BUTTON_DPAD_UP);
+                                controller_button(ctrl, &input_controller->move_down,
+                                                  SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+                                controller_button(ctrl, &input_controller->move_left,
+                                                  SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+                                controller_button(ctrl, &input_controller->move_right,
+                                                  SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+
+                                controller_button(ctrl, &input_controller->left_shoulder,
+                                                  SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+                                controller_button(ctrl, &input_controller->right_shoulder,
+                                                  SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+
+                                controller_button(ctrl, &input_controller->action_up,
+                                                  SDL_CONTROLLER_BUTTON_Y);
+                                controller_button(ctrl, &input_controller->action_down,
+                                                  SDL_CONTROLLER_BUTTON_A);
+                                controller_button(ctrl, &input_controller->action_left,
+                                                  SDL_CONTROLLER_BUTTON_X);
+                                controller_button(ctrl, &input_controller->action_right,
+                                                  SDL_CONTROLLER_BUTTON_X);
+
+                            } else {
+                                printf("Error registering controller: %d.\n%s\n",
+                                       controller_index,
+                                       SDL_GetError());
+                            }
+                        }
+                    }
+
+                    {
+                        keyboard->is_analog = false;
+                        keyboard_button(&keyboard->move_up, SDL_SCANCODE_W);
+                        keyboard_button(&keyboard->move_down, SDL_SCANCODE_S);
+                        keyboard_button(&keyboard->move_left, SDL_SCANCODE_A);
+                        keyboard_button(&keyboard->move_right, SDL_SCANCODE_D);
+                        keyboard_button(&keyboard->left_shoulder, SDL_SCANCODE_Q);
+                        keyboard_button(&keyboard->right_shoulder, SDL_SCANCODE_E);
+                        // TODO: Handle input for every other key
                     }
 
                     while (SDL_PollEvent(&event)) {
@@ -309,11 +411,15 @@ int main() {
                                     // Keep aspect ratio defined in
                                     // ASPECT_RATIO_WIDTH & ASPECT_RATIO_HEIGHT
                                     if (new_width != game.window_width) {
-                                        aspect_ratio_result = new_width / ASPECT_RATIO_WIDTH;
-                                        new_height = aspect_ratio_result * ASPECT_RATIO_HEIGHT;
+                                        aspect_ratio_result =
+                                            new_width / ASPECT_RATIO_WIDTH;
+                                        new_height =
+                                            aspect_ratio_result * ASPECT_RATIO_HEIGHT;
                                     } else if (new_height != game.window_height) {
-                                        aspect_ratio_result = new_height / ASPECT_RATIO_HEIGHT;
-                                        new_width = aspect_ratio_result * ASPECT_RATIO_WIDTH;
+                                        aspect_ratio_result =
+                                            new_height / ASPECT_RATIO_HEIGHT;
+                                        new_width =
+                                            aspect_ratio_result * ASPECT_RATIO_WIDTH;
                                     }
 
                                     SDL_RenderSetScale(game.renderer,
@@ -331,11 +437,13 @@ int main() {
                                 }
                             } break;
                             case SDL_KEYDOWN: {
-                                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                                SDL_Keycode key_code = event.key.keysym.sym;
+
+                                if (key_code == SDLK_ESCAPE) {
                                     game_running = false;
                                 }
 
-                                if (event.key.keysym.sym == SDLK_p) {
+                                if (key_code == SDLK_p) {
                                     global_pause = !global_pause;
                                 }
                             } break;
@@ -346,7 +454,7 @@ int main() {
                         SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 255);
                         SDL_RenderClear(game.renderer);
 
-                        game_code.game_update_and_render(&game_memory, &input, &game);
+                        game_code.game_update_and_render(&game_memory, new_input, &game);
 
                         SDL_RenderPresent(game.renderer);
 
@@ -355,6 +463,8 @@ int main() {
                         delta_time_value = (END - START) / FREQ;
                         fps_value = (u32)(1.0f / delta_time_value);
                         game.delta_time = delta_time_value;
+
+                        old_input = new_input;
                     }
 #if FTW_INTERNAL
                     char window_title_buffer[50];
@@ -368,7 +478,6 @@ int main() {
                         SDL_platform_unload_game_code();
 
                         game_code = SDL_platform_load_game_code();
-                        on_refresh();
                     }
 
                     if (SDL_platform_config_changed()) {

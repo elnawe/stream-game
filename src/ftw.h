@@ -64,40 +64,48 @@ struct Game_Button_State {
 };
 
 struct Game_Input_Controller {
+    bool is_analog;
+
+    Vector2 left_axis;
+    Vector2 right_axis;
+
     union {
-        Game_Button_State buttons[4];
+        Game_Button_State buttons[12];
 
         struct {
-            Game_Button_State Y; // up - Triangle
-            Game_Button_State A; // down - Cross
-            Game_Button_State X; // left - Square
-            Game_Button_State B; // right - Circle
-        };
-    };
-};
-
-struct Game_Input_Keyboard {
-    // TODO: Add more buttons as we need them
-    union {
-        Game_Button_State buttons[4];
-
-        struct {
+            // Directional Pad
             Game_Button_State move_up;
             Game_Button_State move_down;
             Game_Button_State move_left;
             Game_Button_State move_right;
 
-            // TODO: WAT?!?!
-            Game_Button_State action;
-            Game_Button_State reset;
+            Game_Button_State left_shoulder;
+            Game_Button_State right_shoulder;
+
+            // TODO: Figure out why SDL doesn't support LB and RB
+            // PlayStation: L1 | Xbox: LB
+            // Game_Button_State left_button;
+            // PlayStation: R1 | Xbox: RB
+            // Game_Button_State right_button;
+
+            // PlayStation: Triangle | Xbox: Y
+            Game_Button_State action_up;
+
+            // PlaySTation: Cross | Xbox: A
+            Game_Button_State action_down;
+
+            // PlayStation: Square | Xbox: X
+            Game_Button_State action_left;
+
+            // PlayStation: Circle | Xbox: B
+            Game_Button_State action_right;
+
         };
     };
 };
 
 struct Game_Input {
-    // TODO: Implement controller
-    Game_Input_Controller c;
-    Game_Input_Keyboard kb;
+    Game_Input_Controller controllers[4];
 };
 
 // TODO: Should remove [..], Game_Data *game from here once we start
