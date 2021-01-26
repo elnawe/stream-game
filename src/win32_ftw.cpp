@@ -330,21 +330,40 @@ int main() {
                 if (game_code.is_valid) {
                     START = SDL_GetPerformanceCounter();
 
-                    Game_Input_Controller *keyboard = &new_input->controllers[0];
+                    {
+                        Game_Input_Controller *keyboard = &new_input->controllers[0];
+
+                        keyboard->is_analog = false;
+                        keyboard->is_enabled = true;
+
+                        keyboard_button(&keyboard->move_up, SDL_SCANCODE_W);
+                        keyboard_button(&keyboard->move_down, SDL_SCANCODE_S);
+                        keyboard_button(&keyboard->move_left, SDL_SCANCODE_A);
+                        keyboard_button(&keyboard->move_right, SDL_SCANCODE_D);
+
+                        keyboard_button(&keyboard->left_shoulder, SDL_SCANCODE_Q);
+                        keyboard_button(&keyboard->right_shoulder, SDL_SCANCODE_E);
+
+                        keyboard_button(&keyboard->action_up, SDL_SCANCODE_I);
+                        keyboard_button(&keyboard->action_down, SDL_SCANCODE_K);
+                        keyboard_button(&keyboard->action_left, SDL_SCANCODE_J);
+                        keyboard_button(&keyboard->action_right, SDL_SCANCODE_L);
+                    }
 
                     for (int controller_index = 0;
                          controller_index < SDL_NumJoysticks();
                          ++controller_index) {
+                        u32 input_index = controller_index+1;
                         if (SDL_IsGameController(controller_index)) {
                             SDL_GameController *ctrl =
                                 SDL_GameControllerOpen(controller_index);
 
                             if (ctrl) {
-                                u32 input_index = controller_index+1;
                                 Game_Input_Controller *input_controller =
                                     &new_input->controllers[input_index];
 
                                 input_controller->is_analog = true;
+                                input_controller->is_enabled = true;
 
                                 controller_axis(ctrl, &input_controller->left_axis,
                                                 SDL_CONTROLLER_AXIS_LEFTX,
@@ -382,18 +401,9 @@ int main() {
                                        controller_index,
                                        SDL_GetError());
                             }
+                        } else {
+                            input->controllers[input_index].is_enabled = false;
                         }
-                    }
-
-                    {
-                        keyboard->is_analog = false;
-                        keyboard_button(&keyboard->move_up, SDL_SCANCODE_W);
-                        keyboard_button(&keyboard->move_down, SDL_SCANCODE_S);
-                        keyboard_button(&keyboard->move_left, SDL_SCANCODE_A);
-                        keyboard_button(&keyboard->move_right, SDL_SCANCODE_D);
-                        keyboard_button(&keyboard->left_shoulder, SDL_SCANCODE_Q);
-                        keyboard_button(&keyboard->right_shoulder, SDL_SCANCODE_E);
-                        // TODO: Handle input for every other key
                     }
 
                     while (SDL_PollEvent(&event)) {
@@ -437,6 +447,7 @@ int main() {
                                 }
                             } break;
                             case SDL_KEYDOWN: {
+#if FTW_INTERNAL
                                 SDL_Keycode key_code = event.key.keysym.sym;
 
                                 if (key_code == SDLK_ESCAPE) {
@@ -446,6 +457,7 @@ int main() {
                                 if (key_code == SDLK_p) {
                                     global_pause = !global_pause;
                                 }
+#endif
                             } break;
                         }
                     }

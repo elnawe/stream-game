@@ -65,6 +65,7 @@ struct Game_Button_State {
 
 struct Game_Input_Controller {
     bool is_analog;
+    bool is_enabled;
 
     Vector2 left_axis;
     Vector2 right_axis;

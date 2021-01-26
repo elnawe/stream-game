@@ -172,26 +172,33 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
 
     Vector2 movement = {};
 
-    Game_Input_Controller *keyboard = &input->controllers[0];
-    Game_Input_Controller *joystick = &input->controllers[1];
+    for (int controller_index = 0;
+         controller_index < array_len(input->controllers);
+         ++controller_index) {
+        Game_Input_Controller *controller = &input->controllers[controller_index];
 
+        if (!controller->is_enabled) {
+            // NOTE: Skip input processing if controller is disabled.
+            continue;
+        }
 
-    if (keyboard->move_left.is_down) {
-        movement.x = -1.0f;
-    }
-    if (keyboard->move_right.is_down) {
-        movement.x = 1.0f;
-    }
-    if (keyboard->move_up.is_down) {
-        movement.y = -1.0f;
-    }
-    if (keyboard->move_down.is_down) {
-        movement.y = 1.0f;
-    }
-
-    if (joystick->is_analog) {
-        movement.x += joystick->left_axis.x;
-        movement.y += joystick->left_axis.y;
+        if (controller->is_analog) {
+            movement.x += controller->left_axis.x;
+            movement.y += controller->left_axis.y;
+        } else {
+            if (controller->move_up.is_down) {
+                movement.y -= 1.0f;
+            }
+            if (controller->move_down.is_down) {
+                movement.y += 1.0f;
+            }
+            if (controller->move_left.is_down) {
+                movement.x -= 1.0f;
+            }
+            if (controller->move_right.is_down) {
+                movement.x += 1.0f;
+            }
+        }
     }
 
     // NOTE: this is meters per second.

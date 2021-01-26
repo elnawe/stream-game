@@ -9,6 +9,7 @@
   Player movement is faster on diagonals
 * TODO Player gets stuck in the wall when trying to go up.
   Sprite seems to go through but the sprite is smaller than the collision check.
+* TODO Input configuration in-game
 * ARCHIVE
 ** DONE STREAM(1/12) [CODE] Add types.h file
 ** DONE STREAM(1/12) [CODE] Add operator overload for Vector2
