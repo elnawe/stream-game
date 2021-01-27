@@ -327,8 +327,7 @@ int main() {
     if (window) {
         game_running = true;
 
-        SDL_GameController *game_controller = register_controller();
-
+        SDL_GameController *game_controller;
         Game_Input input[2];
         Game_Input *old_input = &input[0];
         Game_Input *new_input = &input[1];
@@ -358,6 +357,74 @@ int main() {
                 if (game_code.is_valid) {
                     START = SDL_GetPerformanceCounter();
 
+                                        while (SDL_PollEvent(&event)) {
+                        switch(event.type) {
+                            case SDL_QUIT: {
+                                game_running = false;
+                            } break;
+                            case SDL_CONTROLLERDEVICEADDED: {
+                                game_controller = register_controller();
+                            } break;
+                            case SDL_CONTROLLERDEVICEREMOVED: {
+                                SDL_GameControllerClose(game_controller);
+                                game_controller = NULL;
+                            } break;
+                            case SDL_WINDOWEVENT: {
+                                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                                    r32 new_width = event.window.data1;
+                                    r32 new_height = event.window.data2;
+                                    r32 aspect_ratio_result;
+
+#if ENABLE_AUTO_RESIZE_VIEWPORT
+                                    // Keep aspect ratio defined in
+                                    // ASPECT_RATIO_WIDTH & ASPECT_RATIO_HEIGHT
+                                    if (new_width != game.window_width) {
+                                        aspect_ratio_result =
+                                            new_width / ASPECT_RATIO_WIDTH;
+                                        new_height =
+                                            aspect_ratio_result * ASPECT_RATIO_HEIGHT;
+                                    } else if (new_height != game.window_height) {
+                                        aspect_ratio_result =
+                                            new_height / ASPECT_RATIO_HEIGHT;
+                                        new_width =
+                                            aspect_ratio_result * ASPECT_RATIO_WIDTH;
+                                    }
+
+                                    u32 new_width_ratio =
+                                        (new_width  / ORIGINAL_GRAPHIC_WIDTH);
+                                    u32 new_height_ratio =
+                                        (new_height  / ORIGINAL_GRAPHIC_HEIGHT);
+
+                                    SDL_RenderSetScale(game.renderer,
+                                                       new_width_ratio,
+                                                       new_height_ratio);
+#endif
+
+                                    // Resizing window and game scale
+                                    SDL_SetWindowSize(game.window,
+                                                      new_width,
+                                                      new_height);
+
+                                    game.window_width = new_width;
+                                    game.window_height = new_height;
+                                }
+                            } break;
+                            case SDL_KEYDOWN: {
+#if FTW_INTERNAL
+                                SDL_Keycode key_code = event.key.keysym.sym;
+
+                                if (key_code == SDLK_ESCAPE) {
+                                    game_running = false;
+                                }
+
+                                if (key_code == SDLK_p) {
+                                    global_pause = !global_pause;
+                                }
+#endif
+                            } break;
+                        }
+                    }
+
                     // Keyboard Input
                     {
                         Game_Input_Controller *keyboard = &new_input->controllers[0];
@@ -376,6 +443,7 @@ int main() {
 
                         keyboard_button(&keyboard->action_up, SDL_SCANCODE_I);
                         keyboard_button(&keyboard->action_down, SDL_SCANCODE_K);
+                        keyboard_button(&keyboard->action_down, SDL_SCANCODE_LSHIFT);
                         keyboard_button(&keyboard->action_left, SDL_SCANCODE_J);
                         keyboard_button(&keyboard->action_right, SDL_SCANCODE_L);
                     }
@@ -421,68 +489,6 @@ int main() {
                                               SDL_CONTROLLER_BUTTON_X);
                         } else {
                             controller->is_enabled = false;
-                        }
-                    }
-
-                    while (SDL_PollEvent(&event)) {
-                        switch(event.type) {
-                            case SDL_QUIT: {
-                                game_running = false;
-                            } break;
-                            case SDL_CONTROLLERDEVICEADDED: {
-                                game_controller = register_controller();
-                            } break;
-                            case SDL_CONTROLLERDEVICEREMOVED: {
-                                game_controller = NULL;
-                            } break;
-                            case SDL_WINDOWEVENT: {
-                                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                                    r32 new_width = event.window.data1;
-                                    r32 new_height = event.window.data2;
-                                    r32 aspect_ratio_result;
-
-#if ENABLE_AUTO_RESIZE_VIEWPORT
-                                    // Keep aspect ratio defined in
-                                    // ASPECT_RATIO_WIDTH & ASPECT_RATIO_HEIGHT
-                                    if (new_width != game.window_width) {
-                                        aspect_ratio_result =
-                                            new_width / ASPECT_RATIO_WIDTH;
-                                        new_height =
-                                            aspect_ratio_result * ASPECT_RATIO_HEIGHT;
-                                    } else if (new_height != game.window_height) {
-                                        aspect_ratio_result =
-                                            new_height / ASPECT_RATIO_HEIGHT;
-                                        new_width =
-                                            aspect_ratio_result * ASPECT_RATIO_WIDTH;
-                                    }
-
-                                    SDL_RenderSetScale(game.renderer,
-                                                       (new_width  / ORIGINAL_GRAPHIC_WIDTH),
-                                                       (new_height / ORIGINAL_GRAPHIC_HEIGHT));
-#endif
-
-                                    // Resizing window and game scale
-                                    SDL_SetWindowSize(game.window,
-                                                      new_width,
-                                                      new_height);
-
-                                    game.window_width = new_width;
-                                    game.window_height = new_height;
-                                }
-                            } break;
-                            case SDL_KEYDOWN: {
-#if FTW_INTERNAL
-                                SDL_Keycode key_code = event.key.keysym.sym;
-
-                                if (key_code == SDLK_ESCAPE) {
-                                    game_running = false;
-                                }
-
-                                if (key_code == SDLK_p) {
-                                    global_pause = !global_pause;
-                                }
-#endif
-                            } break;
                         }
                     }
 

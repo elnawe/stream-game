@@ -32,11 +32,18 @@ struct Memory_Arena {
     mem_size used;
 };
 
+struct Zoom_Options {
+    r32 level;
+    r32 max_level;
+};
+
 struct Game_State {
     Memory_Arena world_arena;
     World *world;
 
     World_Position player_p;
+
+    Zoom_Options zoom;
 };
 
 struct Game_Options {
@@ -111,7 +118,7 @@ struct Game_Input {
 
 // TODO: Should remove [..], Game_Data *game from here once we start
 //       passing game data using the memory.
-#define GAME_UPDATE_AND_RENDER(name) void name(Game_Memory *memory, Game_Input *input, Game_Data *game)
+#define GAME_UPDATE_AND_RENDER(name) void name(Game_Memory *memory, Game_Input *input, Game_Data *game_data)
 typedef GAME_UPDATE_AND_RENDER(Game_Update_And_Render);
 GAME_UPDATE_AND_RENDER(game_update_and_render_stub){}
 

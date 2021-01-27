@@ -8,8 +8,27 @@
 // TODO: Move this macros to another file
 #define array_len(array) (sizeof(array) / sizeof((array)[0]))
 
+inline f32 clamp_f32(f32 value, f32 min, f32 max) {
+    f32 result = value;
+
+    if (result > max) {
+        result = max;
+    }
+    if (result < min) {
+        result = min;
+    }
+
+    return result;
+}
+
 inline s32 floor_r32_to_s32(r32 value) {
     s32 result = (s32)floorf(value);
+
+    return result;
+}
+
+inline s32 ceil_r32_to_s32(r32 value) {
+    s32 result = (s32)ceilf(value);
 
     return result;
 }

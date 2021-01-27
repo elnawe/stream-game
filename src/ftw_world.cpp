@@ -28,15 +28,15 @@ global_var u32 room_nesw01[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
 };
 
 global_var u32 room_nesw02[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
-    {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+    {9, 9, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 9, 9},
+    {9, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 9},
     {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
-    {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1}
+    {9, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 9},
+    {9, 9, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 9, 9}
 };
 
 global_var u32 room_nesw03[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
@@ -63,7 +63,6 @@ global_var u32 room_nesw04[TILEMAP_SIZE_Y][TILEMAP_SIZE_X] = {
     {9, 9, 9, 9, 9, 9, 9, 1, 0, 1, 9, 9, 9, 9, 9, 9, 9}
 };
 
-
 internal void
 normalize_coords(u32 tile_count, s32 *tilemap_pos, s32 *tile_pos) {
     while (*tile_pos < 0) {
@@ -79,10 +78,10 @@ normalize_coords(u32 tile_count, s32 *tilemap_pos, s32 *tile_pos) {
 
 internal void
 recanonicalize_coords(Tilemap *tilemap,
-                                  i32 tile_count,
-                                  s32 *tilemap_pos,
-                                  s32 *tile_pos,
-                                  r32 *tile_relative_pos) {
+                      i32 tile_count,
+                      s32 *tilemap_pos,
+                      s32 *tile_pos,
+                      r32 *tile_relative_pos) {
     s32 offset = floor_r32_to_s32(*tile_relative_pos / tilemap->tile_side_in_meters);
 
     *tile_pos += offset;

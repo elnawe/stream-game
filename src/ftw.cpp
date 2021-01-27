@@ -24,11 +24,6 @@
 #include "item.cpp"
 #include "texture_manager.cpp"
 
-global_var Game_Data *game;
-global_var Uint64 animation_timer;
-global_var Uint32 current;
-global_var Uint32 last_update;
-
 internal void initialize_arena(Memory_Arena *arena, mem_size size, u8 *base) {
     arena->size = size;
     arena->base = base;
@@ -49,6 +44,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     assert(sizeof(Game_State) <= memory->permanent_storage_size);
 
     Game_State *game_state = (Game_State *)memory->permanent_storage;
+    Game_Data *game = game_data;
 
     if (!memory->is_initialized) {
         // TODO: Randomness
@@ -57,11 +53,13 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         // TODO: Legacy code to be removed once we start using
         //       the permanent/transient storage.
         // TODO: remove this with new load_texture/create_entity combo
-        game = game;
 
         initialize_arena(&game_state->world_arena,
                          memory->permanent_storage_size - sizeof(Game_State),
                          (u8 *)memory->permanent_storage + sizeof(Game_State));
+
+        game_state->zoom.level = 0.5f;
+        game_state->zoom.max_level = 70.0f;
 
         game_state->world = push_struct(&game_state->world_arena, World);
         World *world = game_state->world;
@@ -171,6 +169,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     r32 player_width =  0.6f*player_height;
 
     Vector2 movement = {};
+    f32 player_speed = 8.0f;
 
     for (int controller_index = 0;
          controller_index < array_len(input->controllers);
@@ -185,14 +184,21 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         }
 
         if (controller->is_analog) {
-            movement.x = controller->left_axis.x;
-            movement.y = controller->left_axis.y;
+            movement.x += controller->left_axis.x;
+            movement.y += -1.0f*controller->left_axis.y;
+
+            //zoom_level = controller->right_axis.y;
+            f32 new_zoom_level = game_state->zoom.level +
+                (0.05f*controller->right_axis.y)*-1.0f;
+
+            game_state->zoom.level = clamp_f32(new_zoom_level, 0.15f, 1.0f);
+
         } else {
             if (controller->move_up.is_down) {
-                movement.y = -1.0f;
+                movement.y = 1.0f;
             }
             if (controller->move_down.is_down) {
-                movement.y = 1.0f;
+                movement.y = -1.0f;
             }
             if (controller->move_left.is_down) {
                 movement.x = -1.0f;
@@ -201,11 +207,29 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
                 movement.x = 1.0f;
             }
         }
+
+        if (controller->left_shoulder.is_down &&
+            game_state->zoom.level > 0.15f) {
+            game_state->zoom.level -= 0.005f;
+        }
+        if (controller->right_shoulder.is_down &&
+            game_state->zoom.level < 0.95f) {
+            game_state->zoom.level += 0.005f;
+        }
+
+        if (controller->action_down.is_down) {
+            player_speed = 12.0f;
+        }
     }
 
     // NOTE: this is meters per second.
-    f32 velocity = 8.0f * game->delta_time;
-    Vector2 d_player_position = movement * velocity;
+    f32 velocity = player_speed * game->delta_time;
+
+    if (movement.x != 0.0f && movement.y != 0.0f) {
+        velocity *= 0.9f;
+    }
+
+    Vector2 d_player_position = movement*velocity;
 
     World_Position new_player_position = game_state->player_p;
     new_player_position.tile_relative_x += d_player_position.x;
@@ -226,18 +250,16 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         game_state->player_p = new_player_position;
     }
 
-    // 30
-    // -13 - 13 = 780
-    // -22 - 22 = 1320
+    tilemap->tile_side_in_pixels =
+        floorf(game_state->zoom.level*game_state->zoom.max_level);
+    // Column = X; Row = Y;
+    s32 rel_column_max = ceil_r32_to_s32(
+        ((game->window_width + 40) / tilemap->tile_side_in_pixels) / 2);
+    s32 rel_row_max = ceil_r32_to_s32(
+        ((game->window_height + 80) / tilemap->tile_side_in_pixels) / 2);
 
-    // X = 1280
-    // Y = 720
-
-    // 40
-    // Y = -10 - 10
-    // X = -16 - 16
-    for (int rel_row = -13; rel_row <= 13; ++rel_row) {
-        for (int rel_column = -22; rel_column <= 22; ++rel_column) {
+    for (int rel_row = -rel_row_max; rel_row <= rel_row_max; ++rel_row) {
+        for (int rel_column = -rel_column_max; rel_column <= rel_column_max; ++rel_column) {
             SDL_Rect dst_rect;
 
             s32 column = game_state->player_p.tile_x + rel_column;
@@ -252,14 +274,13 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
                 continue;
             }
 
-
             dst_rect.x = 0.5f*tilemap->tile_side_in_pixels + center_x -
                 tilemap->tile_side_in_pixels*game_state->player_p.tile_x -
                 meters_to_pixels*game_state->player_p.tile_relative_x +
                 ((r32)column)*tilemap->tile_side_in_pixels;
-            dst_rect.y = center_y +
-                tilemap->tile_side_in_pixels*game_state->player_p.tile_y +
-                meters_to_pixels*game_state->player_p.tile_relative_y -
+            dst_rect.y = center_y -
+                tilemap->tile_side_in_pixels*game_state->player_p.tile_y -
+                meters_to_pixels*game_state->player_p.tile_relative_y +
                 ((r32)row)*tilemap->tile_side_in_pixels;
             dst_rect.w = tilemap->tile_side_in_pixels;
             dst_rect.h = tilemap->tile_side_in_pixels;
@@ -293,7 +314,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
     player_rect.x = center_x + 0.5f*(player_width*meters_to_pixels);
     // TODO: Adding world->tile_side_pixels because it's missing
     // from the original math. Check later.
-    player_rect.y = tilemap->tile_side_in_pixels + center_y -
+    player_rect.y = center_y -
         (player_height*meters_to_pixels);
     player_rect.w = player_width*meters_to_pixels;
     player_rect.h = player_height*meters_to_pixels;
