@@ -32,12 +32,137 @@ internal void initialize_arena(Memory_Arena *arena, mem_size size, u8 *base) {
 
 #define push_struct(arena, type) (type *)push_size_(arena, sizeof(type))
 #define push_array(arena, count, type) (type *)push_size_(arena, (count)*sizeof(type))
-void * push_size_(Memory_Arena *arena, mem_size size) {
+void *
+push_size_(Memory_Arena *arena, mem_size size) {
     assert(arena->used + size <= arena->size);
     void *result = arena->base + arena->used;
     arena->used += size;
 
     return result;
+}
+
+// TODO: this is a temporal fix for realloc new rooms.
+void
+dealloc_array(Memory_Arena *arena, u32 count, mem_size size) {
+    arena->used -= (count*size);
+}
+
+internal void
+generate_world(Game_State *game_state, Tilemap *tilemap) {
+    {// Player
+        game_state->player_p.tilemap_x = tilemap->tilemap_count / 2;
+        game_state->player_p.tilemap_y = tilemap->tilemap_count / 2;
+        game_state->player_p.tile_x = 3;
+        game_state->player_p.tile_y = 3;
+        game_state->player_p.tile_relative_x = 5.0f;
+        game_state->player_p.tile_relative_y = 5.0f;
+    }
+
+    // TODO: World generator!
+    tilemap->rooms = push_array(&game_state->world_arena,
+                                (tilemap->tilemap_count*tilemap->tilemap_count),
+                                Room);
+    u32 TOTAL_ROOMS = random_range(8, 20);
+    u32 GEN_X = tilemap->tilemap_count / 2;
+    u32 GEN_Y = tilemap->tilemap_count / 2;
+    u32 FOUND = 1;
+    Room *room = get_room(tilemap, GEN_X, GEN_Y);
+    Room *previous_room = room;
+    u32 previous_direction = 0;
+    assert(room);
+
+    { // Start Position
+        room->id = 1;
+        room->colorR = random_range(20, 200);
+        room->colorG = random_range(20, 200);
+        room->colorB = random_range(20, 200);
+        room->exit[WorldGen_North] = {8, 0};
+        room->exit[WorldGen_East] = {16, 4};
+        room->exit[WorldGen_South] = {8, 8};
+        room->exit[WorldGen_West] = {0, 4};
+        room->tiles = push_array(&game_state->world_arena,
+                                 (tilemap->count_x*tilemap->count_y), u32);
+
+        set_room(tilemap, room, random(4));
+    }
+
+    while (FOUND < TOTAL_ROOMS) {
+        u32 DIRECTION = random(3);
+
+        switch (DIRECTION) {
+            case WorldGen_North: {
+                GEN_Y += 1;
+            } break;
+            case WorldGen_East: {
+                GEN_X += 1;
+            } break;
+            case WorldGen_South: {
+                GEN_Y -= 1;
+            } break;
+            case WorldGen_West: {
+                GEN_X -= 1;
+            } break;
+        }
+
+        assert(GEN_X >= 0 &&
+               GEN_X <= tilemap->tilemap_count &&
+               GEN_Y >= 0 &&
+               GEN_Y <= tilemap->tilemap_count);
+
+        Room *room = get_room(tilemap, GEN_X, GEN_Y);
+        assert(room);
+
+        if (room->id == 0) {
+            room->id = 1;
+            room->colorR = random_range(20, 200);
+            room->colorG = random_range(20, 200);
+            room->colorB = random_range(20, 200);
+            room->exit[0] = {8, 0, WorldGen_North};
+            room->exit[1] = {16, 4, WorldGen_East};
+            room->exit[2] = {8, 8, WorldGen_South};
+            room->exit[3] = {0, 4, WorldGen_West};
+            room->tiles = push_array(&game_state->world_arena,
+                                     (tilemap->count_x*tilemap->count_y), u32);
+
+            set_room(tilemap, room, random(4));
+
+            for (int test_door = 0;
+                 test_door < array_len(room->exit);
+                 ++test_door) {
+                Room_Exit n_exit = room->exit[test_door];
+                Room_Exit p_exit;
+                int p_exit_dir;
+                Room *test_room;
+
+                switch(room->exit[test_door].direction) {
+                    case WorldGen_North: {
+                        test_room = get_room(tilemap, GEN_X, GEN_Y-1);
+                        p_exit_dir = 2;
+                    } break;
+                    case WorldGen_East: {
+                        test_room = get_room(tilemap, GEN_X+1, GEN_Y);
+                        p_exit_dir = 3;
+                    } break;
+                    case WorldGen_South: {
+                        test_room = get_room(tilemap, GEN_X, GEN_Y+1);
+                        p_exit_dir = 0;
+                    } break;
+                    case WorldGen_West: {
+                        test_room = get_room(tilemap, GEN_X-1, GEN_Y);
+                        p_exit_dir = 1;
+                    } break;
+                }
+
+                if (test_room->id == 1) {
+                    p_exit = test_room->exit[p_exit_dir];
+                    room->tiles[n_exit.y * tilemap->count_x + n_exit.x] = 0;
+                    test_room->tiles[p_exit.y * tilemap->count_x + p_exit.x] = 0;
+                }
+            }
+
+            FOUND++;
+        }
+    }
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
@@ -71,89 +196,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         tilemap->tilemap_count = 100;
         tilemap->count_x = 17;
         tilemap->count_y = 9;
-        tilemap->rooms = push_array(&game_state->world_arena,
-                                    (tilemap->tilemap_count*tilemap->tilemap_count),
-                                    Room);
 
-        // TODO: World generator!
-        u32 TOTAL_ROOMS = random_range(8, 20);
-        u32 GEN_X = tilemap->tilemap_count / 2;
-        u32 GEN_Y = tilemap->tilemap_count / 2;
-        u32 FOUND = 0;
-        Room *room = get_room(tilemap, GEN_X, GEN_Y);
-        assert(room);
-
-        { // Start Position
-            room->id = 1;
-            room->colorR = random_range(20, 200);
-            room->colorG = random_range(20, 200);
-            room->colorB = random_range(20, 200);
-            room->tiles = (u32 *)room_nesw00;
-        }
-
-        while (FOUND < TOTAL_ROOMS) {
-            u32 DIRECTION = random(3);
-
-            switch (DIRECTION) {
-                case WorldGen_North: {
-                    GEN_Y += 1;
-                } break;
-                case WorldGen_East: {
-                    GEN_X += 1;
-                } break;
-                case WorldGen_South: {
-                    GEN_Y -= 1;
-                } break;
-                case WorldGen_West: {
-                    GEN_X -= 1;
-                } break;
-            }
-
-            assert(GEN_X >= 0 &&
-                   GEN_X <= tilemap->tilemap_count &&
-                   GEN_Y >= 0 &&
-                   GEN_Y <= tilemap->tilemap_count);
-
-            Room *room = get_room(tilemap, GEN_X, GEN_Y);
-            assert(room);
-
-            if (room->id == 0) {
-                u32 random_room = random(4);
-                room->id = 1;
-                room->colorR = random_range(20, 200);
-                room->colorG = random_range(20, 200);
-                room->colorB = random_range(20, 200);
-
-                switch (random_room) {
-                    case 0: {
-                        room->tiles = (u32 *)room_nesw00;
-                    } break;
-                    case 1: {
-                        room->tiles = (u32 *)room_nesw01;
-                    } break;
-                    case 2: {
-                        room->tiles = (u32 *)room_nesw02;
-                    } break;
-                    case 3: {
-                        room->tiles = (u32 *)room_nesw03;
-                    } break;
-                    case 4: {
-                        room->tiles = (u32 *)room_nesw04;
-                    } break;
-                }
-
-                FOUND++;
-            }
-        }
-
-        {// Player
-            game_state->player_p.tilemap_x = tilemap->tilemap_count / 2;
-            game_state->player_p.tilemap_y = tilemap->tilemap_count / 2;
-            game_state->player_p.tile_x = 3;
-            game_state->player_p.tile_y = 3;
-            game_state->player_p.tile_relative_x = 5.0f;
-            game_state->player_p.tile_relative_y = 5.0f;
-        }
+        generate_world(game_state, tilemap);
 
         memory->is_initialized = true;
     }
@@ -220,6 +264,10 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
         if (controller->action_down.is_down) {
             player_speed = 12.0f;
         }
+
+        if (controller->action_up.is_down) {
+            generate_world(game_state, tilemap);
+        }
     }
 
     // NOTE: this is meters per second.
@@ -274,6 +322,12 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
                 continue;
             }
 
+            Room *room = get_room(tilemap,
+                                  game_state->player_p.tilemap_x,
+                                  game_state->player_p.tilemap_y,
+                                  column,
+                                  row);
+
             dst_rect.x = 0.5f*tilemap->tile_side_in_pixels + center_x -
                 tilemap->tile_side_in_pixels*game_state->player_p.tile_x -
                 meters_to_pixels*game_state->player_p.tile_relative_x +
@@ -286,11 +340,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             dst_rect.h = tilemap->tile_side_in_pixels;
 
             // TODO: This is only demo testing
-            Room *room = get_room(tilemap,
-                                  game_state->player_p.tilemap_x,
-                                  game_state->player_p.tilemap_y,
-                                  column,
-                                  row);
             SDL_SetRenderDrawColor(game->renderer,
                                    room->colorR,
                                    room->colorG,

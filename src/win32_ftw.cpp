@@ -305,13 +305,9 @@ int main() {
     }
 
     window = SDL_CreateWindow(WINDOW_TITLE,
-                              SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED,
-                              WINDOW_WIDTH,
-                              WINDOW_HEIGHT,
-                              SDL_WINDOW_OPENGL|
-                              SDL_WINDOW_SHOWN|
-                              SDL_WINDOW_RESIZABLE);
+                              SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                              WINDOW_WIDTH, WINDOW_HEIGHT,
+                              SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
@@ -345,8 +341,7 @@ int main() {
         u64 total_size = game_memory.permanent_storage_size +
             game_memory.transient_storage_size;
 
-        game_memory.permanent_storage = VirtualAlloc(base_address,
-                                                     total_size,
+        game_memory.permanent_storage = VirtualAlloc(base_address, total_size,
                                                      MEM_RESERVE|MEM_COMMIT,
                                                      PAGE_READWRITE);
         game_memory.transient_storage =

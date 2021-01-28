@@ -87,13 +87,17 @@ struct Game_Input_Controller {
             Game_Button_State move_left;
             Game_Button_State move_right;
 
+            // PlayStation: L1 Xbox: LB
             Game_Button_State left_shoulder;
+
+            // PlayStation: R1 Xbox: RB
             Game_Button_State right_shoulder;
 
-            // TODO: Figure out why SDL doesn't support LB and RB
-            // PlayStation: L1 | Xbox: LB
+            // TODO: Figure out why SDL doesn't support the
+            // actuals LEFT and RIGHT triggers.
+            // PlayStation: L2 | Xbox: LT
             // Game_Button_State left_button;
-            // PlayStation: R1 | Xbox: RB
+            // PlayStation: R2 | Xbox: RT
             // Game_Button_State right_button;
 
             // PlayStation: Triangle | Xbox: Y

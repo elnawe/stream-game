@@ -6,6 +6,9 @@
 ** DONE Functional-ize function for normalize_coords & recanonicalize_coords?
 ** DONE Make get_room and get_tile_value polymorphic
 ** DONE BUG Fix movement coordinates. Up should be positive
+** DONE Starting the new Room logic
+** TODO New world generation with new Rooms
+** TODO OpenGL integration!
 
 * TODO [CODE] Chech the quick maths. Lerp player movement
   Player movement is faster on diagonals

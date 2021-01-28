@@ -2,19 +2,28 @@
 #define FTW_WORLD_H
 
 enum WorldGen {
+    //WorldGen_NONE,
     WorldGen_North,
     WorldGen_East,
     WorldGen_South,
     WorldGen_West
 };
 
+struct Room_Exit {
+    u32 x;
+    u32 y;
+    WorldGen direction;
+};
+
 struct Room {
     u32 id;
     u32 *tiles;
-    //
+
     u32 colorR;
     u32 colorG;
     u32 colorB;
+
+    Room_Exit exit[4];
 };
 
 struct Tilemap {
