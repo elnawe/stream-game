@@ -41,12 +41,6 @@ push_size_(Memory_Arena *arena, mem_size size) {
     return result;
 }
 
-// TODO: this is a temporal fix for realloc new rooms.
-void
-dealloc_array(Memory_Arena *arena, u32 count, mem_size size) {
-    arena->used -= (count*size);
-}
-
 internal void
 generate_world(Game_State *game_state, Tilemap *tilemap) {
     {// Player
@@ -54,8 +48,8 @@ generate_world(Game_State *game_state, Tilemap *tilemap) {
         game_state->player_p.tilemap_y = tilemap->tilemap_count / 2;
         game_state->player_p.tile_x = 3;
         game_state->player_p.tile_y = 3;
-        game_state->player_p.tile_relative_x = 5.0f;
-        game_state->player_p.tile_relative_y = 5.0f;
+        game_state->player_p.tile_relative_x = 1.0f;
+        game_state->player_p.tile_relative_y = 1.0f;
     }
 
     // TODO: World generator!
@@ -155,8 +149,8 @@ generate_world(Game_State *game_state, Tilemap *tilemap) {
 
                 if (test_room->id == 1) {
                     p_exit = test_room->exit[p_exit_dir];
-                    room->tiles[n_exit.y * tilemap->count_x + n_exit.x] = 0;
-                    test_room->tiles[p_exit.y * tilemap->count_x + p_exit.x] = 0;
+                    room->tiles[n_exit.y * tilemap->count_x + n_exit.x] = 4;
+                    test_room->tiles[p_exit.y * tilemap->count_x + p_exit.x] = 4;
                 }
             }
 
@@ -349,6 +343,11 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render) {
             if (tile_value == 1) {
                 SDL_SetRenderDrawColor(game->renderer, 50, 50, 50, 255);
             }
+
+            if (tile_value == 4) {
+                SDL_SetRenderDrawColor(game->renderer, 150, 150, 150, 255);
+            }
+
 
             if (column == game_state->player_p.tile_x &&
                 row == game_state->player_p.tile_y) {

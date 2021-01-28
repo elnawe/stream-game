@@ -247,7 +247,7 @@ is_room_point_empty(Tilemap *tilemap, Room *room, i32 test_tile_x, i32 test_tile
             test_tile_y < tilemap->count_y*tilemap->tile_side_in_pixels) {
             u32 tile_value = get_tile_value(tilemap, room, test_tile_x, test_tile_y);
 
-            is_empty  = (tile_value == 0);
+            is_empty  = (tile_value == 0 || tile_value == 4);
         }
     }
 
